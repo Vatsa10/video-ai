@@ -14,7 +14,12 @@ def main() -> int:
     ap.add_argument("--no-normalize", action="store_true")
     ap.add_argument("--no-faces", action="store_true")
     ap.add_argument("--no-objects", action="store_true")
-    ap.add_argument("--embeddings", action="store_true")
+    ap.add_argument("--no-embeddings", action="store_true")
+    ap.add_argument("--no-clip-zeroshot", action="store_true")
+    ap.add_argument("--no-camera-motion", action="store_true")
+    ap.add_argument("--no-ocr", action="store_true")
+    ap.add_argument("--no-quality", action="store_true")
+    ap.add_argument("--no-dedup", action="store_true")
     ap.add_argument("--asr", action="store_true")
     ap.add_argument("--no-store", action="store_true")
     args = ap.parse_args()
@@ -25,7 +30,12 @@ def main() -> int:
         do_normalize=not args.no_normalize,
         enable_faces=not args.no_faces,
         enable_objects=not args.no_objects,
-        enable_embeddings=args.embeddings,
+        enable_embeddings=not args.no_embeddings,
+        enable_clip_zeroshot=not args.no_clip_zeroshot,
+        enable_camera_motion=not args.no_camera_motion,
+        enable_ocr=not args.no_ocr,
+        enable_quality=not args.no_quality,
+        enable_dedup=not args.no_dedup,
         enable_asr=args.asr,
         write_store=not args.no_store,
     )

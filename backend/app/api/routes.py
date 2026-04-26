@@ -1,6 +1,5 @@
 import uuid
-from pathlib import Path
-from typing import Optional
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,8 +13,36 @@ from ..services import cache, ffmpeg, storage
 
 router = APIRouter()
 
-# in-memory job table for async analyze
 JOBS: dict[str, dict] = {}
+
+SceneCardMode = Literal["light", "full", "none"]
+
+
+def _shape_scene_card(vf: VideoFeatures, mode: SceneCardMode) -> VideoFeatures:
+    if mode == "light":
+        return vf  # already attached light variant by pipeline
+    if mode == "none":
+        for seg in vf.timeline:
+            seg.scene_card = None
+        return vf
+    # mode == "full" — rebuild full variant per segment
+    from analysis.scene_card import build_full
+    for i, seg in enumerate(vf.timeline):
+        # adapt pydantic seg → dataclass-like view for build_full
+        class _S:  # minimal shim
+            pass
+        shim = _S()
+        shim.t0, shim.t1 = seg.t0, seg.t1
+        shim.features = seg
+        shim.scores = type("S", (), {"highlight": seg.highlight, "energy": seg.energy})()
+        shim.tags = seg.tags
+        shim.decisions = seg.decisions
+        shim.transcript = seg.transcript
+        try:
+            seg.scene_card = build_full(shim, vf.video_id, i)
+        except Exception:
+            pass
+    return vf
 
 
 @router.get("/health")
@@ -28,8 +55,14 @@ async def analyze(
     file: UploadFile = File(...),
     faces: bool = Query(default=settings.ENABLE_FACES),
     objects: bool = Query(default=settings.ENABLE_OBJECTS),
-    embeddings: bool = Query(default=settings.ENABLE_EMBEDDINGS),
+    embeddings: bool = Query(default=True),
+    clip_zeroshot: bool = Query(default=True),
+    camera_motion: bool = Query(default=True),
+    ocr: bool = Query(default=True),
+    quality: bool = Query(default=True),
+    dedup: bool = Query(default=True),
     asr: bool = Query(default=settings.ENABLE_ASR),
+    include_scene_card: SceneCardMode = Query(default="light"),
 ):
     try:
         _, path = storage.save_upload(file)
@@ -38,14 +71,14 @@ async def analyze(
     try:
         vf = run_pipeline(
             str(path),
-            enable_faces=faces,
-            enable_objects=objects,
-            enable_embeddings=embeddings,
-            enable_asr=asr,
+            enable_faces=faces, enable_objects=objects,
+            enable_embeddings=embeddings, enable_asr=asr,
+            enable_clip_zeroshot=clip_zeroshot, enable_camera_motion=camera_motion,
+            enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"pipeline failed: {e}")
-    return vf
+    return _shape_scene_card(vf, include_scene_card)
 
 
 @router.post("/analyze/async")
@@ -54,7 +87,12 @@ async def analyze_async(
     file: UploadFile = File(...),
     faces: bool = Query(default=settings.ENABLE_FACES),
     objects: bool = Query(default=settings.ENABLE_OBJECTS),
-    embeddings: bool = Query(default=settings.ENABLE_EMBEDDINGS),
+    embeddings: bool = Query(default=True),
+    clip_zeroshot: bool = Query(default=True),
+    camera_motion: bool = Query(default=True),
+    ocr: bool = Query(default=True),
+    quality: bool = Query(default=True),
+    dedup: bool = Query(default=True),
     asr: bool = Query(default=settings.ENABLE_ASR),
 ):
     try:
@@ -67,8 +105,13 @@ async def analyze_async(
     def _work():
         JOBS[job_id]["status"] = "running"
         try:
-            vf = run_pipeline(str(path), enable_faces=faces, enable_objects=objects,
-                              enable_embeddings=embeddings, enable_asr=asr)
+            vf = run_pipeline(
+                str(path),
+                enable_faces=faces, enable_objects=objects,
+                enable_embeddings=embeddings, enable_asr=asr,
+                enable_clip_zeroshot=clip_zeroshot, enable_camera_motion=camera_motion,
+                enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
+            )
             JOBS[job_id].update(status="done", video_id=vf.video_id)
         except Exception as e:
             JOBS[job_id].update(status="failed", error=str(e))
@@ -86,11 +129,14 @@ def job_status(job_id: str):
 
 
 @router.get("/features/{video_id}", response_model=VideoFeatures)
-def get_features(video_id: str):
+def get_features(
+    video_id: str,
+    include_scene_card: SceneCardMode = Query(default="light"),
+):
     vf = cache.load_features(video_id)
     if not vf:
         raise HTTPException(404, "video_id not found")
-    return vf
+    return _shape_scene_card(vf, include_scene_card)
 
 
 @router.post("/edit-plan", response_model=EditPlan)
@@ -127,10 +173,10 @@ def root():
     return JSONResponse({
         "service": "video-ai backend",
         "endpoints": [
-            "POST /analyze",
+            "POST /analyze[?include_scene_card=light|full|none]",
             "POST /analyze/async",
             "GET  /jobs/{job_id}",
-            "GET  /features/{video_id}",
+            "GET  /features/{video_id}[?include_scene_card=...]",
             "POST /edit-plan",
             "POST /render",
             "GET  /health",

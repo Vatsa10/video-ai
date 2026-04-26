@@ -19,7 +19,11 @@ def _select_for_mode(vf: VideoFeatures, mode: str) -> List[Segment]:
     target = MODE_TARGET_DUR.get(mode, MODE_TARGET_DUR["reel"])
     if target is None:
         return [Segment(t0=s.t0, t1=s.t1) for s in vf.timeline]
-    ranked = sorted(vf.timeline, key=lambda s: s.highlight, reverse=True)
+    candidates = [s for s in vf.timeline if not s.low_quality]
+    if not candidates:
+        candidates = list(vf.timeline)
+    # primary: highlight desc, tie-break: energy desc
+    ranked = sorted(candidates, key=lambda s: (s.highlight, s.energy), reverse=True)
     chosen, total = [], 0.0
     for s in ranked:
         dur = s.t1 - s.t0

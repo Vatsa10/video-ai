@@ -10,6 +10,8 @@ class SegmentFeatures(BaseModel):
     stability: float = 0.0
     brightness: float = 0.0
     contrast: float = 0.0
+    edge_density: float = 0.0
+    blur_score: float = 0.0
 
     audio_energy: float = 0.0
     onset_strength: float = 0.0
@@ -26,11 +28,32 @@ class SegmentFeatures(BaseModel):
     scene_cut: bool = False
     embedding: Optional[List[float]] = None
 
+    # v2 — semantic / video-first
+    scene_category: Optional[str] = None
+    clip_tags: List[str] = []
+    clip_scores: Dict[str, float] = {}
+    camera_motion: str = "unknown"
+    camera_motion_conf: float = 0.0
+    shot_type: str = "unknown"
+    ocr_text: str = ""
+    has_text_overlay: bool = False
+    low_quality: bool = False
+    fusion_tags: List[str] = []
+
+    # flow diagnostics (kept for completeness; rarely surfaced)
+    flow_fx_mean: float = 0.0
+    flow_fy_mean: float = 0.0
+    flow_divergence: float = 0.0
+    flow_dir_var: float = 0.0
+
+    # scoring + tagging
     highlight: float = 0.0
     stability_score: float = 0.0
+    energy: float = 0.0
     tags: List[str] = []
     decisions: List[str] = []
     transcript: str = ""
+    scene_card: Optional[Dict] = None
 
 
 class Highlight(BaseModel):

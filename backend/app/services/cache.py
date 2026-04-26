@@ -32,9 +32,11 @@ def _to_model(raw: dict) -> VideoFeatures:
             **feats,
             "highlight": scores.get("highlight", s.get("highlight", 0.0)),
             "stability_score": scores.get("stability", s.get("stability_score", 0.0)),
+            "energy": scores.get("energy", s.get("energy", 0.0)),
             "tags": s.get("tags", []),
             "decisions": s.get("decisions", []),
             "transcript": s.get("transcript", ""),
+            "scene_card": s.get("scene_card"),
         })
     return VideoFeatures(
         video_id=raw["video_id"],
