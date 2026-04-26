@@ -24,6 +24,7 @@ faces = ["mediapipe>=0.10"]
 objects = ["ultralytics>=8.1"]
 embed = ["open_clip_torch>=2.24", "torch>=2.2", "Pillow>=10.0"]
 asr = ["openai-whisper>=20231117"]
+ocr = ["easyocr>=1.7"]
 classifier = ["xgboost>=2.0", "scikit-learn>=1.4"]
 store = ["redis>=5.0"]
 ml = [
@@ -33,6 +34,7 @@ ml = [
   "torch>=2.2",
   "Pillow>=10.0",
   "openai-whisper>=20231117",
+  "easyocr>=1.7",
   "scikit-learn>=1.4",
 ]
 

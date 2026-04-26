@@ -21,11 +21,32 @@ class SegmentFeatures:
     contrast: float = 0.0
     embedding: Optional[List[float]] = None
 
+    # v2 — semantic / video-first
+    scene_category: Optional[str] = None
+    clip_tags: List[str] = field(default_factory=list)
+    clip_scores: Dict[str, float] = field(default_factory=dict)
+    camera_motion: str = "unknown"
+    camera_motion_conf: float = 0.0
+    shot_type: str = "unknown"
+    ocr_text: str = ""
+    has_text_overlay: bool = False
+    edge_density: float = 0.0
+    blur_score: float = 0.0
+    low_quality: bool = False
+    fusion_tags: List[str] = field(default_factory=list)
+
+    # raw flow stats — internal use by camera_motion + diagnostics
+    flow_fx_mean: float = 0.0
+    flow_fy_mean: float = 0.0
+    flow_divergence: float = 0.0
+    flow_dir_var: float = 0.0
+
 
 @dataclass
 class SegmentScores:
     highlight: float = 0.0
     stability: float = 0.0
+    energy: float = 0.0
 
 
 @dataclass
@@ -45,6 +66,7 @@ class Segment:
     tags: List[str] = field(default_factory=list)
     decisions: List[str] = field(default_factory=list)
     transcript: str = ""
+    scene_card: Optional[Dict] = None  # light variant when persisted
 
     def to_dict(self) -> dict:
         return asdict(self)
