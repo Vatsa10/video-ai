@@ -5,12 +5,20 @@ Multi-modal video understanding pipeline. Heuristic-first, ML-ready. Stack: Rust
 ## Layout
 
 ```
-engine/      Rust orchestrator: ffmpeg normalize, cache, spawn analysis
-analysis/    Python pipeline: segmentation, features, scoring, decisions
-agent/       Merge user EditPlan + AI suggestions → augmented EditPlan
-composer/    Remotion renderer (stub)
-schemas/     JSON contracts (segment_features.json, edit_plan.json)
-storage/     storage/cache/{video_id}/
+pyproject.toml     analysis package config (repo root)
+analysis/          Python pipeline package (flat layout)
+  __init__.py      pipeline.py  scene_card.py  scoring.py  decision.py
+  schema.py  segmentation.py  preprocess.py  store.py  dedup.py
+  features/        visual.py audio.py faces.py objects.py embeddings.py
+                   clip_zeroshot.py camera_motion.py shot_type.py quality.py
+                   ocr.py pose.py saliency.py depth.py captions.py action.py
+                   tracking.py fusion.py adaptive.py _gpu.py transcript.py
+backend/           FastAPI service wrapping analysis
+engine/            Rust orchestrator (ffmpeg + spawn analysis)
+agent/             EditPlan merger
+composer/          Remotion renderer (stub)
+schemas/           JSON contracts
+storage/           cache/{video_id}/{normalized.mp4, audio.wav, features.{json,parquet}}
 ```
 
 ## Pipeline
@@ -42,10 +50,10 @@ Lazy imports — pipeline runs without ML extras; modules return empty results.
 ## Install
 
 ```bash
-cd analysis
+# from repo root
 pip install -e .                 # MVP only
 pip install -e ".[ml]"           # all ML features
-pip install -e ".[faces,objects]"  # selective
+pip install -e ".[faces,objects,embed,ocr]"  # selective
 ```
 
 ## Run

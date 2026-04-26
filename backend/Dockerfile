@@ -6,9 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# install analysis package (flat layout: package at /app/analysis/analysis)
+# Project layout (repo root):
+#   /app/pyproject.toml         analysis package config
+#   /app/analysis/              Python package
+#   /app/backend/               FastAPI service
+COPY pyproject.toml /app/pyproject.toml
 COPY analysis /app/analysis
-RUN pip install --no-cache-dir -e /app/analysis
+RUN pip install --no-cache-dir -e /app
 
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt

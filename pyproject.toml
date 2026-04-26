@@ -51,3 +51,4 @@ analysis = "analysis.__main__:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["analysis*"]
+exclude = ["backend*", "engine*", "agent*", "composer*", "storage*", "schemas*"]

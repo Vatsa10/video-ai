@@ -21,7 +21,7 @@ Query flags on `/analyze`: `faces`, `objects`, `embeddings`, `asr` (booleans).
 
 ```bash
 # from repo root
-pip install -e analysis
+pip install -e .
 pip install -r backend/requirements.txt
 # optional ML
 pip install -e "analysis[ml]"
