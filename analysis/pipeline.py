@@ -38,7 +38,8 @@ from .scoring import attach_fusion_tags, score_segment, select_highlights, tag_s
 from .decision import decide_global, decide_segment
 from .dedup import dedup_highlights
 from .scene_card import attach_scene_cards
-from .schema import Segment, SegmentFeatures, SegmentScores, VideoFeatures
+from .narrative import compose as compose_narrative
+from .schema import NarrativeScene, Segment, SegmentFeatures, SegmentScores, VideoFeatures
 from .store import write_parquet
 
 
@@ -53,6 +54,8 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
         enable_pose: bool = True, enable_saliency: bool = True,
         enable_depth: bool = True, enable_captions: bool = True,
         enable_action: bool = True, enable_tracking: bool = True,
+        # Narrative
+        enable_narrative: bool = True, narrative_polish: bool = False,
         write_store: bool = True) -> VideoFeatures:
     src = str(Path(src).resolve())
     vid = video_id_for(src)
@@ -188,6 +191,14 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
     )
     decide_global(vf)
     attach_scene_cards(vf)
+
+    if enable_narrative:
+        narr = compose_narrative(timeline, polish=narrative_polish)
+        vf.narrative = narr["paragraph"]
+        vf.narrative_summary = narr.get("summary")
+        vf.narrative_bullets = narr.get("bullets", [])
+        vf.narrative_scenes = [NarrativeScene(t0=s["t0"], t1=s["t1"], text=s["text"])
+                               for s in narr.get("scenes", [])]
 
     if write_store:
         try:

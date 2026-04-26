@@ -29,6 +29,9 @@ def main() -> int:
     ap.add_argument("--no-captions", action="store_true")
     ap.add_argument("--no-action", action="store_true")
     ap.add_argument("--no-tracking", action="store_true")
+    ap.add_argument("--no-narrative", action="store_true")
+    ap.add_argument("--narrative-polish", action="store_true",
+                    help="run local DistilBART summarizer over narrative")
     ap.add_argument("--no-store", action="store_true")
     args = ap.parse_args()
 
@@ -51,6 +54,8 @@ def main() -> int:
         enable_captions=not args.no_captions,
         enable_action=not args.no_action,
         enable_tracking=not args.no_tracking,
+        enable_narrative=not args.no_narrative,
+        narrative_polish=args.narrative_polish,
         write_store=not args.no_store,
     )
     payload = json.dumps(feats.to_dict(), indent=2)

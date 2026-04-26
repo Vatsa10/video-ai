@@ -68,6 +68,8 @@ async def analyze(
     captions: bool = Query(default=True),
     action: bool = Query(default=True),
     tracking: bool = Query(default=True),
+    narrative: bool = Query(default=True),
+    narrative_polish: bool = Query(default=False),
     include_scene_card: SceneCardMode = Query(default="light"),
 ):
     try:
@@ -83,6 +85,7 @@ async def analyze(
             enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
             enable_pose=pose, enable_saliency=saliency, enable_depth=depth,
             enable_captions=captions, enable_action=action, enable_tracking=tracking,
+            enable_narrative=narrative, narrative_polish=narrative_polish,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"pipeline failed: {e}")
@@ -153,6 +156,31 @@ def get_features(
     if not vf:
         raise HTTPException(404, "video_id not found")
     return _shape_scene_card(vf, include_scene_card)
+
+
+@router.get("/narrative/{video_id}")
+def get_narrative(
+    video_id: str,
+    style: Literal["paragraph", "bullets", "scenes", "summary", "all"] = Query(default="paragraph"),
+):
+    vf = cache.load_features(video_id)
+    if not vf:
+        raise HTTPException(404, "video_id not found")
+    if style == "paragraph":
+        return {"video_id": video_id, "paragraph": vf.narrative}
+    if style == "bullets":
+        return {"video_id": video_id, "bullets": vf.narrative_bullets}
+    if style == "scenes":
+        return {"video_id": video_id, "scenes": [s.model_dump() for s in vf.narrative_scenes]}
+    if style == "summary":
+        return {"video_id": video_id, "summary": vf.narrative_summary or vf.narrative[:500]}
+    return {
+        "video_id": video_id,
+        "paragraph": vf.narrative,
+        "summary": vf.narrative_summary,
+        "bullets": vf.narrative_bullets,
+        "scenes": [s.model_dump() for s in vf.narrative_scenes],
+    }
 
 
 @router.post("/edit-plan", response_model=EditPlan)

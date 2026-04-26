@@ -49,6 +49,10 @@ def _to_model(raw: dict) -> VideoFeatures:
         highlights=raw.get("highlights", []),
         words=raw.get("words", []),
         global_decisions=raw.get("global_decisions", []),
+        narrative=raw.get("narrative", ""),
+        narrative_summary=raw.get("narrative_summary"),
+        narrative_bullets=raw.get("narrative_bullets", []),
+        narrative_scenes=raw.get("narrative_scenes", []),
     )
 
 

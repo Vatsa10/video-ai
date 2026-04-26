@@ -85,6 +85,12 @@ class Word(BaseModel):
     conf: float = 0.0
 
 
+class NarrativeScene(BaseModel):
+    t0: float
+    t1: float
+    text: str
+
+
 class VideoFeatures(BaseModel):
     video_id: str
     source_path: str
@@ -96,3 +102,7 @@ class VideoFeatures(BaseModel):
     highlights: List[Highlight] = []
     words: List[Word] = []
     global_decisions: List[str] = []
+    narrative: str = ""
+    narrative_summary: Optional[str] = None
+    narrative_bullets: List[str] = []
+    narrative_scenes: List[NarrativeScene] = []

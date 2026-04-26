@@ -96,6 +96,13 @@ class Highlight:
 
 
 @dataclass
+class NarrativeScene:
+    t0: float
+    t1: float
+    text: str
+
+
+@dataclass
 class VideoFeatures:
     video_id: str
     source_path: str
@@ -107,6 +114,10 @@ class VideoFeatures:
     highlights: List[Highlight] = field(default_factory=list)
     words: List[Word] = field(default_factory=list)
     global_decisions: List[str] = field(default_factory=list)
+    narrative: str = ""
+    narrative_summary: Optional[str] = None
+    narrative_bullets: List[str] = field(default_factory=list)
+    narrative_scenes: List[NarrativeScene] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -120,4 +131,8 @@ class VideoFeatures:
             "highlights": [asdict(h) for h in self.highlights],
             "words": [asdict(w) for w in self.words],
             "global_decisions": self.global_decisions,
+            "narrative": self.narrative,
+            "narrative_summary": self.narrative_summary,
+            "narrative_bullets": list(self.narrative_bullets),
+            "narrative_scenes": [asdict(n) for n in self.narrative_scenes],
         }
