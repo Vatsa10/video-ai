@@ -65,6 +65,22 @@ def decide_segment(seg: Segment) -> None:
         if "no_synthetic_zoom" not in d:
             d.append("no_synthetic_zoom")
 
+    # Tier 2 — saliency + depth + tracking
+    if f.salient_bbox:
+        d.append(f"safe_crop_bbox:{round(f.salient_bbox[0],3)},{round(f.salient_bbox[1],3)},{round(f.salient_bbox[2],3)},{round(f.salient_bbox[3],3)}")
+    if f.depth_subject_distance == "close" and f.pose_present:
+        d.append("dolly_zoom_eligible")
+    if f.action_top1 in {"dancing", "applauding", "cheering"} and f.music_prob > 0.6:
+        d.append("beat_sync_cuts")
+    if f.track_persistence > 0.7 and f.shot_type in {"cu", "mcu"}:
+        d.append("subject_track_crop_ok")
+    if f.pose_action_hint == "arms_up" and f.audio_energy > 0.6:
+        d.append("celebration_keep")
+    # caption-emotive heuristic — keep if caption mentions strong emotive words
+    EMOTIVE = {"hug", "kiss", "cry", "laugh", "cheer", "wave", "applaud"}
+    if any(k in (f.caption or "").lower() for k in EMOTIVE):
+        d.append("keep_full_segment")
+
     seg.decisions = d
 
 

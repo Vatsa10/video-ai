@@ -62,6 +62,12 @@ async def analyze(
     quality: bool = Query(default=True),
     dedup: bool = Query(default=True),
     asr: bool = Query(default=settings.ENABLE_ASR),
+    pose: bool = Query(default=True),
+    saliency: bool = Query(default=True),
+    depth: bool = Query(default=True),
+    captions: bool = Query(default=True),
+    action: bool = Query(default=True),
+    tracking: bool = Query(default=True),
     include_scene_card: SceneCardMode = Query(default="light"),
 ):
     try:
@@ -75,6 +81,8 @@ async def analyze(
             enable_embeddings=embeddings, enable_asr=asr,
             enable_clip_zeroshot=clip_zeroshot, enable_camera_motion=camera_motion,
             enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
+            enable_pose=pose, enable_saliency=saliency, enable_depth=depth,
+            enable_captions=captions, enable_action=action, enable_tracking=tracking,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"pipeline failed: {e}")
@@ -94,6 +102,12 @@ async def analyze_async(
     quality: bool = Query(default=True),
     dedup: bool = Query(default=True),
     asr: bool = Query(default=settings.ENABLE_ASR),
+    pose: bool = Query(default=True),
+    saliency: bool = Query(default=True),
+    depth: bool = Query(default=True),
+    captions: bool = Query(default=True),
+    action: bool = Query(default=True),
+    tracking: bool = Query(default=True),
 ):
     try:
         _, path = storage.save_upload(file)
@@ -111,6 +125,8 @@ async def analyze_async(
                 enable_embeddings=embeddings, enable_asr=asr,
                 enable_clip_zeroshot=clip_zeroshot, enable_camera_motion=camera_motion,
                 enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
+                enable_pose=pose, enable_saliency=saliency, enable_depth=depth,
+                enable_captions=captions, enable_action=action, enable_tracking=tracking,
             )
             JOBS[job_id].update(status="done", video_id=vf.video_id)
         except Exception as e:

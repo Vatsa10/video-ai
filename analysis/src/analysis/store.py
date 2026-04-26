@@ -7,7 +7,8 @@ from .schema import VideoFeatures
 
 
 # columns dropped from parquet rows (variable-length / nested-only fields kept in JSON)
-_DROP = {"embedding", "object_counts", "clip_scores"}
+_DROP = {"embedding", "object_counts", "clip_scores", "keypoints_summary",
+         "salient_center", "salient_bbox", "action_top5", "track_ids"}
 
 
 def write_parquet(vf: VideoFeatures, dst: str) -> str:
