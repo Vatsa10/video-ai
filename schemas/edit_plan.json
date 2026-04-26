@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EditPlan",
+  "type": "object",
+  "properties": {
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t0", "t1"],
+        "properties": {
+          "t0": { "type": "number" },
+          "t1": { "type": "number" },
+          "source": { "type": "string" }
+        }
+      }
+    },
+    "ai_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "t0": { "type": "number" },
+          "t1": { "type": "number" },
+          "score": { "type": "number" }
+        }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "per_segment_decisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}

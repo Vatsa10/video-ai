@@ -15,14 +15,25 @@ dependencies = [
   "webrtcvad>=2.0.10",
   "scenedetect>=0.6.4",
   "tqdm>=4.66",
+  "pandas>=2.1",
+  "pyarrow>=15.0",
 ]
 
 [project.optional-dependencies]
+faces = ["mediapipe>=0.10"]
+objects = ["ultralytics>=8.1"]
+embed = ["open_clip_torch>=2.24", "torch>=2.2", "Pillow>=10.0"]
+asr = ["openai-whisper>=20231117"]
+classifier = ["xgboost>=2.0", "scikit-learn>=1.4"]
+store = ["redis>=5.0"]
 ml = [
-  "torch",
-  "ultralytics",
-  "mediapipe",
-  "openai-whisper",
+  "mediapipe>=0.10",
+  "ultralytics>=8.1",
+  "open_clip_torch>=2.24",
+  "torch>=2.2",
+  "Pillow>=10.0",
+  "openai-whisper>=20231117",
+  "scikit-learn>=1.4",
 ]
 
 [project.scripts]
