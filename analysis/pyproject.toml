@@ -49,4 +49,5 @@ ml = [
 analysis = "analysis.__main__:main"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["analysis*"]

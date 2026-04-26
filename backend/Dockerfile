@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# install analysis package
+# install analysis package (flat layout: package at /app/analysis/analysis)
 COPY analysis /app/analysis
 RUN pip install --no-cache-dir -e /app/analysis
 
