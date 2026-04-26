@@ -1,19 +1,26 @@
-"""Gated OCR. Skips segments unlikely to contain text overlay."""
+"""Adaptive gated OCR. Per-video percentile thresholds — no hardcoded brightness/edge cutoffs.
+
+Run when:
+  brightness > stats.bright_p60  (above-median bright frame)
+  AND edge_density > stats.edge_p70 (top 30% busy frames)
+  AND (scene_cut OR shot_type ∈ {ws, ews})
+"""
 from typing import Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
 
+from .adaptive import VideoStats
 
-THRESH_BRIGHT = 0.5
-THRESH_EDGE = 0.18
+
 WIDE_SHOTS = {"ws", "ews"}
 
 
-def ocr_should_run(visual_seg: Dict, shot_type: str, scene_cut: bool) -> bool:
-    if visual_seg.get("brightness", 0.0) <= THRESH_BRIGHT:
+def ocr_should_run(visual_seg: Dict, shot_type: str, scene_cut: bool,
+                   stats: VideoStats) -> bool:
+    if visual_seg.get("brightness", 0.0) <= max(stats.bright_p60, 0.35):
         return False
-    if visual_seg.get("edge_density", 0.0) <= THRESH_EDGE:
+    if visual_seg.get("edge_density", 0.0) <= max(stats.edge_p70, 0.10):
         return False
     if not (scene_cut or shot_type in WIDE_SHOTS):
         return False
@@ -29,8 +36,7 @@ def _reader():
 
 
 def _segment_keyframes(cap, fps: float, t0: float, t1: float, n: int = 2) -> List[np.ndarray]:
-    f0 = int(t0 * fps)
-    f1 = max(f0 + 1, int(t1 * fps))
+    f0 = int(t0 * fps); f1 = max(f0 + 1, int(t1 * fps))
     if f1 - f0 <= n:
         idxs = list(range(f0, f1))
     else:
@@ -46,14 +52,14 @@ def _segment_keyframes(cap, fps: float, t0: float, t1: float, n: int = 2) -> Lis
 
 def ocr_per_segment(video_path: str, segments: List[Tuple[float, float]],
                     visual: List[Dict], shot_types: List[Dict],
+                    stats: VideoStats,
                     scene_cuts: Optional[List[bool]] = None) -> List[Dict]:
     if scene_cuts is None:
         scene_cuts = [True] * len(segments)
     blank = [{"ocr_text": "", "ocr_boxes": [], "has_text_overlay": False} for _ in segments]
 
-    # Decide which segments to run on
     run_idxs = [i for i, (v, st, sc) in enumerate(zip(visual, shot_types, scene_cuts))
-                if ocr_should_run(v, st.get("shot_type", "unknown"), sc)]
+                if ocr_should_run(v, st.get("shot_type", "unknown"), sc, stats)]
     if not run_idxs:
         return blank
 
@@ -79,21 +85,16 @@ def ocr_per_segment(video_path: str, segments: List[Tuple[float, float]],
                 if conf < 0.5 or not text.strip():
                     continue
                 texts.append(text.strip())
-                # bbox is 4 points; convert to xywh
-                xs = [p[0] for p in bbox]
-                ys = [p[1] for p in bbox]
+                xs = [p[0] for p in bbox]; ys = [p[1] for p in bbox]
                 x = float(min(xs)); y = float(min(ys))
                 w = float(max(xs) - x); h = float(max(ys) - y)
                 boxes.append([x, y, w, h])
-        # dedupe by lowercase
-        seen = set()
-        deduped = []
+        seen = set(); deduped = []
         for t in texts:
             k = t.lower()
             if k in seen:
                 continue
-            seen.add(k)
-            deduped.append(t)
+            seen.add(k); deduped.append(t)
         joined = " | ".join(deduped)
         out[i] = {"ocr_text": joined, "ocr_boxes": boxes, "has_text_overlay": bool(joined)}
     cap.release()

@@ -12,6 +12,7 @@ def main() -> int:
     ap.add_argument("--out", default=None)
     ap.add_argument("--storage", default="storage")
     ap.add_argument("--no-normalize", action="store_true")
+    # Tier 1
     ap.add_argument("--no-faces", action="store_true")
     ap.add_argument("--no-objects", action="store_true")
     ap.add_argument("--no-embeddings", action="store_true")
@@ -21,6 +22,13 @@ def main() -> int:
     ap.add_argument("--no-quality", action="store_true")
     ap.add_argument("--no-dedup", action="store_true")
     ap.add_argument("--asr", action="store_true")
+    # Tier 2
+    ap.add_argument("--no-pose", action="store_true")
+    ap.add_argument("--no-saliency", action="store_true")
+    ap.add_argument("--no-depth", action="store_true")
+    ap.add_argument("--no-captions", action="store_true")
+    ap.add_argument("--no-action", action="store_true")
+    ap.add_argument("--no-tracking", action="store_true")
     ap.add_argument("--no-store", action="store_true")
     args = ap.parse_args()
 
@@ -37,10 +45,15 @@ def main() -> int:
         enable_quality=not args.no_quality,
         enable_dedup=not args.no_dedup,
         enable_asr=args.asr,
+        enable_pose=not args.no_pose,
+        enable_saliency=not args.no_saliency,
+        enable_depth=not args.no_depth,
+        enable_captions=not args.no_captions,
+        enable_action=not args.no_action,
+        enable_tracking=not args.no_tracking,
         write_store=not args.no_store,
     )
     payload = json.dumps(feats.to_dict(), indent=2)
-
     if args.out:
         Path(args.out).write_text(payload, encoding="utf-8")
     else:

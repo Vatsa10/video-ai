@@ -41,6 +41,22 @@ class SegmentFeatures:
     flow_divergence: float = 0.0
     flow_dir_var: float = 0.0
 
+    # Tier 2 — semantic depth
+    pose_present: bool = False
+    pose_action_hint: Optional[str] = None
+    keypoints_summary: Dict[str, float] = field(default_factory=dict)
+    salient_center: Optional[List[float]] = None
+    salient_bbox: Optional[List[float]] = None
+    salient_area_ratio: float = 0.0
+    depth_fg_ratio: float = 0.0
+    depth_subject_distance: Optional[str] = None
+    caption: str = ""
+    action_top1: Optional[str] = None
+    action_top5: List[List] = field(default_factory=list)
+    track_ids: List[int] = field(default_factory=list)
+    dominant_track_id: Optional[int] = None
+    track_persistence: float = 0.0
+
 
 @dataclass
 class SegmentScores:

@@ -21,20 +21,27 @@ dependencies = [
 
 [project.optional-dependencies]
 faces = ["mediapipe>=0.10"]
+pose = ["mediapipe>=0.10"]
 objects = ["ultralytics>=8.1"]
+tracking = ["ultralytics>=8.1", "supervision>=0.21"]
 embed = ["open_clip_torch>=2.24", "torch>=2.2", "Pillow>=10.0"]
 asr = ["openai-whisper>=20231117"]
 ocr = ["easyocr>=1.7"]
+captions = ["transformers>=4.40", "torch>=2.2", "Pillow>=10.0"]
+depth = ["transformers>=4.40", "torch>=2.2", "Pillow>=10.0"]
+action = ["pytorchvideo>=0.1.5", "torch>=2.2"]
 classifier = ["xgboost>=2.0", "scikit-learn>=1.4"]
 store = ["redis>=5.0"]
 ml = [
   "mediapipe>=0.10",
   "ultralytics>=8.1",
+  "supervision>=0.21",
   "open_clip_torch>=2.24",
   "torch>=2.2",
   "Pillow>=10.0",
   "openai-whisper>=20231117",
   "easyocr>=1.7",
+  "transformers>=4.40",
   "scikit-learn>=1.4",
 ]
 

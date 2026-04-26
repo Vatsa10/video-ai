@@ -27,7 +27,22 @@ struct Args {
     no_objects: bool,
 
     #[arg(long)]
-    embeddings: bool,
+    no_embeddings: bool,
+
+    #[arg(long)]
+    no_clip_zeroshot: bool,
+
+    #[arg(long)]
+    no_camera_motion: bool,
+
+    #[arg(long)]
+    no_ocr: bool,
+
+    #[arg(long)]
+    no_quality: bool,
+
+    #[arg(long)]
+    no_dedup: bool,
 
     #[arg(long)]
     asr: bool,
@@ -107,8 +122,23 @@ fn main() -> Result<()> {
     if args.no_objects {
         cmd.arg("--no-objects");
     }
-    if args.embeddings {
-        cmd.arg("--embeddings");
+    if args.no_embeddings {
+        cmd.arg("--no-embeddings");
+    }
+    if args.no_clip_zeroshot {
+        cmd.arg("--no-clip-zeroshot");
+    }
+    if args.no_camera_motion {
+        cmd.arg("--no-camera-motion");
+    }
+    if args.no_ocr {
+        cmd.arg("--no-ocr");
+    }
+    if args.no_quality {
+        cmd.arg("--no-quality");
+    }
+    if args.no_dedup {
+        cmd.arg("--no-dedup");
     }
     if args.asr {
         cmd.arg("--asr");
