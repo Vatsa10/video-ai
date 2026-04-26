@@ -47,14 +47,57 @@ storage/           cache/{video_id}/{normalized.mp4, audio.wav, features.{json,p
 
 Lazy imports — pipeline runs without ML extras; modules return empty results.
 
-## Install
+## Prereqs (system)
+
+- Python 3.10–3.12
+- ffmpeg + ffprobe in PATH (`ffmpeg -version` must work)
+- ~5 GB disk for model weights (CLIP, BLIP, Depth-Anything, YOLO, Whisper) auto-downloaded on first run
+- GPU optional but strongly recommended (CUDA-enabled torch)
+
+## Install (whole pipeline, single command)
 
 ```bash
 # from repo root
-pip install -e .                 # MVP only
-pip install -e ".[ml]"           # all ML features
-pip install -e ".[faces,objects,embed,ocr]"  # selective
+python -m venv .venv
+# Linux/Mac:  source .venv/bin/activate
+# Windows:    .venv\Scripts\activate
+
+pip install --upgrade pip wheel setuptools
+pip install -e .
 ```
+
+That installs every feature module's deps (CLIP, BLIP, Depth-Anything, YOLOv8, MediaPipe, EasyOCR, Whisper, librosa, FastAPI). One command, full pipeline.
+
+GPU torch (recommended): install CUDA torch first **before** `pip install -e .`:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install -e .
+```
+
+## Test the whole pipeline
+
+```bash
+# 1. CLI end-to-end on a video
+python -m analysis path/to/sample.mp4 --out features.json
+
+# 2. Or smoke test with rich diagnostics
+python scripts/smoke_test.py path/to/sample.mp4
+
+# 3. Backend service
+uvicorn backend.app.main:app --reload --port 8000
+# in another terminal:
+curl -F file=@path/to/sample.mp4 'http://localhost:8000/analyze' > features.json
+# extract video_id from response, then:
+curl -X POST 'http://localhost:8000/edit-plan' \
+  -H 'content-type: application/json' \
+  -d '{"video_id":"<id>","mode":"reel"}'
+curl -X POST 'http://localhost:8000/render' \
+  -H 'content-type: application/json' \
+  -d '{"video_id":"<id>","mode":"reel"}' -o reel.mp4
+```
+
+First run is slow — model weights download. Subsequent runs hit local cache.
 
 ## Run
 

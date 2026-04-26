@@ -3,46 +3,41 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "analysis"
+name = "video-ai-analysis"
 version = "0.1.0"
-description = "video-ai analysis pipeline"
-requires-python = ">=3.10"
+description = "video-ai analysis pipeline (full)"
+requires-python = ">=3.10,<3.13"
 dependencies = [
+  # core
   "numpy>=1.26",
   "opencv-python>=4.9",
-  "librosa>=0.10",
-  "soundfile>=0.12",
-  "webrtcvad>=2.0.10",
   "scenedetect>=0.6.4",
   "tqdm>=4.66",
   "pandas>=2.1",
   "pyarrow>=15.0",
-]
+  "Pillow>=10.0",
 
-[project.optional-dependencies]
-faces = ["mediapipe>=0.10"]
-pose = ["mediapipe>=0.10"]
-objects = ["ultralytics>=8.1"]
-tracking = ["ultralytics>=8.1", "supervision>=0.21"]
-embed = ["open_clip_torch>=2.24", "torch>=2.2", "Pillow>=10.0"]
-asr = ["openai-whisper>=20231117"]
-ocr = ["easyocr>=1.7"]
-captions = ["transformers>=4.40", "torch>=2.2", "Pillow>=10.0"]
-depth = ["transformers>=4.40", "torch>=2.2", "Pillow>=10.0"]
-action = ["pytorchvideo>=0.1.5", "torch>=2.2"]
-classifier = ["xgboost>=2.0", "scikit-learn>=1.4"]
-store = ["redis>=5.0"]
-ml = [
-  "mediapipe>=0.10",
+  # audio
+  "librosa>=0.10",
+  "soundfile>=0.12",
+  "webrtcvad>=2.0.10",
+  "openai-whisper>=20231117",
+
+  # vision DL stack
+  "torch>=2.2",
+  "torchvision>=0.17",
+  "open_clip_torch>=2.24",
+  "transformers>=4.40",
   "ultralytics>=8.1",
   "supervision>=0.21",
-  "open_clip_torch>=2.24",
-  "torch>=2.2",
-  "Pillow>=10.0",
-  "openai-whisper>=20231117",
+  "mediapipe>=0.10",
   "easyocr>=1.7",
-  "transformers>=4.40",
-  "scikit-learn>=1.4",
+
+  # backend (FastAPI service ships with package)
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "python-multipart>=0.0.9",
+  "pydantic>=2.6",
 ]
 
 [project.scripts]
