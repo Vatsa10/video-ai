@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "analysis"
+version = "0.1.0"
+description = "video-ai analysis pipeline"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python>=4.9",
+  "librosa>=0.10",
+  "soundfile>=0.12",
+  "webrtcvad>=2.0.10",
+  "scenedetect>=0.6.4",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+ml = [
+  "torch",
+  "ultralytics",
+  "mediapipe",
+  "openai-whisper",
+]
+
+[project.scripts]
+analysis = "analysis.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

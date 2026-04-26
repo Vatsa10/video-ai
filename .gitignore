@@ -1,0 +1,14 @@
+storage/cache/
+target/
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+.env
+*.egg-info/
+dist/
+build/
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VideoFeatures",
+  "type": "object",
+  "required": ["video_id", "duration", "fps", "timeline", "highlights"],
+  "properties": {
+    "video_id": { "type": "string" },
+    "source_path": { "type": "string" },
+    "duration": { "type": "number" },
+    "fps": { "type": "number" },
+    "width": { "type": "integer" },
+    "height": { "type": "integer" },
+    "timeline": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Segment" }
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t0", "t1", "score"],
+        "properties": {
+          "t0": { "type": "number" },
+          "t1": { "type": "number" },
+          "score": { "type": "number" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Segment": {
+      "type": "object",
+      "required": ["t0", "t1", "features", "scores", "tags"],
+      "properties": {
+        "t0": { "type": "number" },
+        "t1": { "type": "number" },
+        "features": {
+          "type": "object",
+          "properties": {
+            "motion": { "type": "number" },
+            "stability": { "type": "number" },
+            "audio_energy": { "type": "number" },
+            "speech": { "type": "boolean" },
+            "faces": { "type": "integer" },
+            "scene_cut": { "type": "boolean" },
+            "objects": { "type": "array", "items": { "type": "string" } },
+            "embedding": { "type": "array", "items": { "type": "number" } }
+          }
+        },
+        "scores": {
+          "type": "object",
+          "properties": {
+            "highlight": { "type": "number" },
+            "stability": { "type": "number" }
+          }
+        },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
