@@ -27,7 +27,11 @@ def run_pipeline(video_path: str,
                  enable_depth: Optional[bool] = None,
                  enable_captions: Optional[bool] = None,
                  enable_action: Optional[bool] = None,
-                 enable_tracking: Optional[bool] = None) -> VideoFeatures:
+                 enable_tracking: Optional[bool] = None,
+                 enable_narrative: Optional[bool] = None,
+                 narrative_polish: Optional[bool] = None,
+                 enable_video_llm: Optional[bool] = None,
+                 video_llm_backend: Optional[str] = None) -> VideoFeatures:
     vf_internal = analysis_run(
         video_path,
         storage_root=str(settings.STORAGE_DIR),
@@ -47,6 +51,10 @@ def run_pipeline(video_path: str,
         enable_captions=_d(enable_captions, True),
         enable_action=_d(enable_action, True),
         enable_tracking=_d(enable_tracking, True),
+        enable_narrative=_d(enable_narrative, True),
+        narrative_polish=_d(narrative_polish, False),
+        enable_video_llm=_d(enable_video_llm, False),
+        video_llm_backend=_d(video_llm_backend, "qwen2vl"),
         write_store=True,
     )
     raw = vf_internal.to_dict()

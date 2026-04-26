@@ -39,9 +39,15 @@ class Scene:
     highlight: float = 0.0
     speech: bool = False
     music_prob: float = 0.0
+    # VLM-derived (preferred when present)
+    vlm_summary: Optional[str] = None
+    vlm_action: Optional[str] = None
+    vlm_subjects: List[str] = field(default_factory=list)
+    vlm_setting: Optional[str] = None
+    vlm_mood: Optional[str] = None
 
 
-def _group_scenes(timeline, sim_thresh: float = 0.85) -> List[Scene]:
+def group_scenes(timeline, sim_thresh: float = 0.85) -> List[Scene]:
     scenes: List[Scene] = []
     cur_idxs: List[int] = []
 
@@ -97,6 +103,17 @@ def _aggregate(timeline, idxs: List[int]) -> Scene:
     tr_parts = [s.transcript for s in segs if s.transcript]
     tr = " ".join(tr_parts).strip()
 
+    # VLM fields propagated to all member segs by pipeline; pick first non-empty
+    vlm_sum = next((s.features.vlm_summary for s in segs if s.features.vlm_summary), None)
+    vlm_act = next((s.features.vlm_action for s in segs if s.features.vlm_action), None)
+    vlm_subj_seen = []
+    for s in segs:
+        for x in s.features.vlm_subjects:
+            if x not in vlm_subj_seen:
+                vlm_subj_seen.append(x)
+    vlm_set = next((s.features.vlm_setting for s in segs if s.features.vlm_setting), None)
+    vlm_mood = next((s.features.vlm_mood for s in segs if s.features.vlm_mood), None)
+
     return Scene(
         t0=segs[0].t0, t1=segs[-1].t1, seg_indices=idxs,
         caption=cap, action=action, scene_category=sc,
@@ -105,6 +122,8 @@ def _aggregate(timeline, idxs: List[int]) -> Scene:
         highlight=max((s.scores.highlight for s in segs), default=0.0),
         speech=any(s.features.speech for s in segs),
         music_prob=max((s.features.music_prob for s in segs), default=0.0),
+        vlm_summary=vlm_sum, vlm_action=vlm_act, vlm_subjects=vlm_subj_seen[:6],
+        vlm_setting=vlm_set, vlm_mood=vlm_mood,
     )
 
 
@@ -154,17 +173,25 @@ def _scene_sentence(s: Scene, role: str, idx: int) -> str:
         prefix = _MIDDLE_CONNECTORS[idx % len(_MIDDLE_CONNECTORS)]
 
     parts: List[str] = []
-    cap = s.caption.strip().rstrip(".")
-    if cap:
-        parts.append(cap)
-    elif s.objects:
-        parts.append("a scene featuring " + ", ".join(s.objects[:3]))
-    elif s.scene_category:
-        parts.append(f"a {_humanize_scene(s.scene_category)}")
+    # Prefer VLM summary (highest quality temporal description)
+    if s.vlm_summary:
+        parts.append(s.vlm_summary.strip().rstrip("."))
+    else:
+        cap = s.caption.strip().rstrip(".")
+        if cap:
+            parts.append(cap)
+        elif s.objects:
+            parts.append("a scene featuring " + ", ".join(s.objects[:3]))
+        elif s.scene_category:
+            parts.append(f"a {_humanize_scene(s.scene_category)}")
 
     extras: List[str] = []
-    if s.action and s.action not in (cap or "").lower():
-        extras.append(s.action.replace("_", " "))
+    body_lower = (parts[0].lower() if parts else "")
+    act = s.vlm_action or s.action
+    if act and act.lower() not in body_lower:
+        extras.append(act.replace("_", " "))
+    if s.vlm_mood and s.vlm_mood.lower() not in body_lower:
+        extras.append(f"mood: {s.vlm_mood}")
     if s.shot_type:
         sh = _humanize_shot(s.shot_type)
         if sh:
@@ -225,7 +252,7 @@ def compose(timeline, polish: bool = False) -> Dict:
     if not timeline:
         return {"paragraph": "", "summary": None, "bullets": [], "scenes": []}
 
-    scenes = _group_scenes(timeline)
+    scenes = group_scenes(timeline)
     roles = _label_roles(scenes)
 
     sentences: List[str] = []

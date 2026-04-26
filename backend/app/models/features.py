@@ -62,6 +62,13 @@ class SegmentFeatures(BaseModel):
     dominant_track_id: Optional[int] = None
     track_persistence: float = 0.0
 
+    # Tier 3 — Video LLM
+    vlm_summary: Optional[str] = None
+    vlm_action: Optional[str] = None
+    vlm_subjects: List[str] = []
+    vlm_setting: Optional[str] = None
+    vlm_mood: Optional[str] = None
+
     # scoring + tagging
     highlight: float = 0.0
     stability_score: float = 0.0
@@ -106,3 +113,5 @@ class VideoFeatures(BaseModel):
     narrative_summary: Optional[str] = None
     narrative_bullets: List[str] = []
     narrative_scenes: List[NarrativeScene] = []
+    vlm_video_summary: Optional[str] = None
+    vlm_backend: Optional[str] = None

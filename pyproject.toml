@@ -27,11 +27,19 @@ dependencies = [
   "torch>=2.2",
   "torchvision>=0.17",
   "open_clip_torch>=2.24",
-  "transformers>=4.40",
+  "transformers>=4.45",
   "ultralytics>=8.1",
   "supervision>=0.21",
   "mediapipe>=0.10",
   "easyocr>=1.7",
+  "accelerate>=0.30",
+
+  # video-LLM (Qwen2-VL + Video-LLaVA)
+  "qwen-vl-utils>=0.0.8",
+  "av>=11.0",
+  "decord>=0.6.0; platform_system != 'Darwin'",
+  # 4-bit quantization for Qwen2-VL (Linux/WSL only — Windows users run fp16)
+  "bitsandbytes>=0.43; platform_system == 'Linux'",
 
   # backend (FastAPI service ships with package)
   "fastapi>=0.110",

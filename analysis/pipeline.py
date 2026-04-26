@@ -34,11 +34,12 @@ from .features.depth import depth_per_segment
 from .features.captions import captions_per_segment
 from .features.action import action_per_segment
 from .features.tracking import tracking_per_segment
+from .features import video_llm as video_llm_mod
 from .scoring import attach_fusion_tags, score_segment, select_highlights, tag_segment
 from .decision import decide_global, decide_segment
 from .dedup import dedup_highlights
 from .scene_card import attach_scene_cards
-from .narrative import compose as compose_narrative
+from .narrative import compose as compose_narrative, group_scenes
 from .schema import NarrativeScene, Segment, SegmentFeatures, SegmentScores, VideoFeatures
 from .store import write_parquet
 
@@ -56,6 +57,10 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
         enable_action: bool = True, enable_tracking: bool = True,
         # Narrative
         enable_narrative: bool = True, narrative_polish: bool = False,
+        # Tier 3 — Video LLM
+        enable_video_llm: bool = False, video_llm_backend: str = "auto",
+        # Embeddings backend
+        embed_backend: str = "clip",
         write_store: bool = True) -> VideoFeatures:
     src = str(Path(src).resolve())
     vid = video_id_for(src)
@@ -81,7 +86,7 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
         f_faces = ex.submit(faces_per_segment, work_video, segs) if enable_faces else None
         f_objects = ex.submit(objects_per_segment, work_video, segs, 1.0,
                               "yolov8n.pt", 0.35, enable_tracking) if enable_objects else None
-        f_embed = ex.submit(embeddings_per_segment, work_video, segs) if enable_embeddings else None
+        f_embed = ex.submit(embeddings_per_segment, work_video, segs, 1.0, embed_backend) if enable_embeddings else None
         f_clipzs = ex.submit(clip_zeroshot_per_segment, work_video, segs) if enable_clip_zeroshot else None
         f_pose = ex.submit(pose_per_segment, work_video, segs) if enable_pose else None
         f_sal = ex.submit(saliency_per_segment, work_video, segs) if enable_saliency else None
@@ -190,12 +195,36 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
         timeline=timeline, highlights=highlights, words=words,
     )
     decide_global(vf)
+
+    # Tier 3 — Video-LLM scene-group description + whole-video summary.
+    # Runs BEFORE narrative + scene_cards so they can ingest VLM fields.
+    if enable_video_llm:
+        try:
+            scene_groups = group_scenes(timeline)
+            group_ranges = [(g.t0, g.t1) for g in scene_groups]
+            vlm_results = video_llm_mod.describe_scene_groups(
+                work_video, group_ranges, backend=video_llm_backend)
+            for grp, res in zip(scene_groups, vlm_results):
+                for idx in grp.seg_indices:
+                    f = timeline[idx].features
+                    f.vlm_summary = res.get("summary") or None
+                    f.vlm_action = res.get("action")
+                    f.vlm_subjects = res.get("subjects", []) or []
+                    f.vlm_setting = res.get("setting")
+                    f.vlm_mood = res.get("mood")
+            vf.vlm_video_summary = video_llm_mod.describe_whole_video(
+                work_video, backend=video_llm_backend) or None
+            vf.vlm_backend = video_llm_backend
+        except Exception as e:
+            import sys
+            print(f"[warn] video_llm failed: {e}", file=sys.stderr)
+
     attach_scene_cards(vf)
 
     if enable_narrative:
         narr = compose_narrative(timeline, polish=narrative_polish)
         vf.narrative = narr["paragraph"]
-        vf.narrative_summary = narr.get("summary")
+        vf.narrative_summary = narr.get("summary") or vf.vlm_video_summary
         vf.narrative_bullets = narr.get("bullets", [])
         vf.narrative_scenes = [NarrativeScene(t0=s["t0"], t1=s["t1"], text=s["text"])
                                for s in narr.get("scenes", [])]

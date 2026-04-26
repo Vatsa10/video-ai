@@ -53,6 +53,8 @@ def _to_model(raw: dict) -> VideoFeatures:
         narrative_summary=raw.get("narrative_summary"),
         narrative_bullets=raw.get("narrative_bullets", []),
         narrative_scenes=raw.get("narrative_scenes", []),
+        vlm_video_summary=raw.get("vlm_video_summary"),
+        vlm_backend=raw.get("vlm_backend"),
     )
 
 

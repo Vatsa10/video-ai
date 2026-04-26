@@ -32,6 +32,14 @@ def main() -> int:
     ap.add_argument("--no-narrative", action="store_true")
     ap.add_argument("--narrative-polish", action="store_true",
                     help="run local DistilBART summarizer over narrative")
+    # Tier 3 — Video LLM
+    ap.add_argument("--video-llm", action="store_true",
+                    help="enable Qwen2-VL / Video-LLaVA scene-level Q&A")
+    ap.add_argument("--video-llm-backend", default="auto",
+                    choices=["auto", "qwen2vl", "videollava"])
+    # Embeddings backend
+    ap.add_argument("--embed-backend", default="clip",
+                    choices=["clip", "languagebind"])
     ap.add_argument("--no-store", action="store_true")
     args = ap.parse_args()
 
@@ -56,6 +64,9 @@ def main() -> int:
         enable_tracking=not args.no_tracking,
         enable_narrative=not args.no_narrative,
         narrative_polish=args.narrative_polish,
+        enable_video_llm=args.video_llm,
+        video_llm_backend=args.video_llm_backend,
+        embed_backend=args.embed_backend,
         write_store=not args.no_store,
     )
     payload = json.dumps(feats.to_dict(), indent=2)

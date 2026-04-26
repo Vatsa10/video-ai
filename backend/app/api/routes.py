@@ -70,6 +70,9 @@ async def analyze(
     tracking: bool = Query(default=True),
     narrative: bool = Query(default=True),
     narrative_polish: bool = Query(default=False),
+    video_llm: bool = Query(default=False),
+    video_llm_backend: str = Query(default="auto"),
+    embed_backend: str = Query(default="clip"),
     include_scene_card: SceneCardMode = Query(default="light"),
 ):
     try:
@@ -86,6 +89,8 @@ async def analyze(
             enable_pose=pose, enable_saliency=saliency, enable_depth=depth,
             enable_captions=captions, enable_action=action, enable_tracking=tracking,
             enable_narrative=narrative, narrative_polish=narrative_polish,
+            enable_video_llm=video_llm, video_llm_backend=video_llm_backend,
+            embed_backend=embed_backend,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"pipeline failed: {e}")
@@ -111,6 +116,11 @@ async def analyze_async(
     captions: bool = Query(default=True),
     action: bool = Query(default=True),
     tracking: bool = Query(default=True),
+    narrative: bool = Query(default=True),
+    narrative_polish: bool = Query(default=False),
+    video_llm: bool = Query(default=False),
+    video_llm_backend: str = Query(default="auto"),
+    embed_backend: str = Query(default="clip"),
 ):
     try:
         _, path = storage.save_upload(file)
@@ -130,6 +140,9 @@ async def analyze_async(
                 enable_ocr=ocr, enable_quality=quality, enable_dedup=dedup,
                 enable_pose=pose, enable_saliency=saliency, enable_depth=depth,
                 enable_captions=captions, enable_action=action, enable_tracking=tracking,
+                enable_narrative=narrative, narrative_polish=narrative_polish,
+                enable_video_llm=video_llm, video_llm_backend=video_llm_backend,
+                embed_backend=embed_backend,
             )
             JOBS[job_id].update(status="done", video_id=vf.video_id)
         except Exception as e:
@@ -173,11 +186,16 @@ def get_narrative(
     if style == "scenes":
         return {"video_id": video_id, "scenes": [s.model_dump() for s in vf.narrative_scenes]}
     if style == "summary":
-        return {"video_id": video_id, "summary": vf.narrative_summary or vf.narrative[:500]}
+        # Prefer VLM whole-video summary; fall back to local DistilBART, then truncate
+        return {"video_id": video_id,
+                "summary": (vf.vlm_video_summary or vf.narrative_summary
+                            or vf.narrative[:500])}
     return {
         "video_id": video_id,
         "paragraph": vf.narrative,
         "summary": vf.narrative_summary,
+        "vlm_video_summary": vf.vlm_video_summary,
+        "vlm_backend": vf.vlm_backend,
         "bullets": vf.narrative_bullets,
         "scenes": [s.model_dump() for s in vf.narrative_scenes],
     }

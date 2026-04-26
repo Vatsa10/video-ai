@@ -25,6 +25,13 @@ def build_light(seg: Segment, video_id: str, idx: int) -> Dict:
         "objects": list(f.objects),
         "dominant_track_id": f.dominant_track_id,
         "track_persistence": f.track_persistence,
+        "vlm": ({
+            "summary": f.vlm_summary,
+            "action": f.vlm_action,
+            "subjects": list(f.vlm_subjects),
+            "setting": f.vlm_setting,
+            "mood": f.vlm_mood,
+        } if f.vlm_summary else None),
         "energy": seg.scores.energy,
         "highlight": seg.scores.highlight,
         "tags": list(seg.tags),

@@ -57,6 +57,13 @@ class SegmentFeatures:
     dominant_track_id: Optional[int] = None
     track_persistence: float = 0.0
 
+    # Tier 3 — Video-LLM (Qwen2-VL / Video-LLaVA) per scene group
+    vlm_summary: Optional[str] = None
+    vlm_action: Optional[str] = None
+    vlm_subjects: List[str] = field(default_factory=list)
+    vlm_setting: Optional[str] = None
+    vlm_mood: Optional[str] = None
+
 
 @dataclass
 class SegmentScores:
@@ -118,6 +125,8 @@ class VideoFeatures:
     narrative_summary: Optional[str] = None
     narrative_bullets: List[str] = field(default_factory=list)
     narrative_scenes: List[NarrativeScene] = field(default_factory=list)
+    vlm_video_summary: Optional[str] = None
+    vlm_backend: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -135,4 +144,6 @@ class VideoFeatures:
             "narrative_summary": self.narrative_summary,
             "narrative_bullets": list(self.narrative_bullets),
             "narrative_scenes": [asdict(n) for n in self.narrative_scenes],
+            "vlm_video_summary": self.vlm_video_summary,
+            "vlm_backend": self.vlm_backend,
         }
