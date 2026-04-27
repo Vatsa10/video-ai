@@ -37,6 +37,11 @@ def main() -> int:
                     help="enable Qwen2-VL / Video-LLaVA scene-level Q&A")
     ap.add_argument("--video-llm-backend", default="auto",
                     choices=["auto", "qwen2vl", "videollava"])
+    ap.add_argument("--video-llm-model", default="",
+                    help="HF model id override; default Qwen/Qwen3-VL-4B-Instruct (fits 8 GB). "
+                         "Also: Qwen/Qwen2-VL-2B-Instruct, Qwen/Qwen2-VL-7B-Instruct")
+    ap.add_argument("--video-llm-no-4bit", action="store_true",
+                    help="disable 4-bit (Linux+bitsandbytes); use fp16 instead")
     # Embeddings backend
     ap.add_argument("--embed-backend", default="clip",
                     choices=["clip", "languagebind"])
@@ -66,6 +71,8 @@ def main() -> int:
         narrative_polish=args.narrative_polish,
         enable_video_llm=args.video_llm,
         video_llm_backend=args.video_llm_backend,
+        video_llm_model=args.video_llm_model,
+        video_llm_4bit=not args.video_llm_no_4bit,
         embed_backend=args.embed_backend,
         write_store=not args.no_store,
     )

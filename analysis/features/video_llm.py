@@ -90,12 +90,14 @@ def _try_parse_json(text: str) -> Dict:
     }
 
 
-# ───────────────────── Qwen2-VL backend ────────────────────
+# ──────────────────── Qwen-VL family backend ──────────────
+# Handles Qwen2-VL, Qwen2.5-VL, Qwen3-VL via AutoModelForImageTextToText
+# (transformers ≥ 4.45). Defaults to Qwen3-VL-4B-Instruct (8 GB VRAM friendly).
 
 class _Qwen2VL:
     name = "qwen2vl"
 
-    def __init__(self, model_id: str = "Qwen/Qwen2-VL-7B-Instruct",
+    def __init__(self, model_id: str = "Qwen/Qwen3-VL-4B-Instruct",
                  load_in_4bit: bool = True, max_pixels: int = 360 * 420,
                  fps: float = 1.0):
         self.model_id = model_id
@@ -109,24 +111,43 @@ class _Qwen2VL:
     def _load(self):
         if self._loaded:
             return
-        import torch  # noqa: F401
-        from transformers import AutoProcessor, Qwen2VLForConditionalGeneration
+        import torch
+        from transformers import AutoProcessor
         kwargs: Dict = {}
+        bnb_ok = False
         try:
             if self.load_in_4bit:
                 from transformers import BitsAndBytesConfig
                 kwargs["quantization_config"] = BitsAndBytesConfig(
                     load_in_4bit=True,
-                    bnb_4bit_compute_dtype="float16",
+                    bnb_4bit_compute_dtype=torch.float16,
                     bnb_4bit_quant_type="nf4",
                 )
                 kwargs["device_map"] = "auto"
-            else:
-                kwargs["torch_dtype"] = "auto"
-                kwargs["device_map"] = "auto"
+                bnb_ok = True
         except Exception:
-            kwargs["device_map"] = "auto"
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(self.model_id, **kwargs)
+            bnb_ok = False
+        if not bnb_ok:
+            kwargs["torch_dtype"] = (torch.float16 if torch.cuda.is_available() else torch.float32)
+            kwargs["device_map"] = "auto" if torch.cuda.is_available() else None
+
+        # Try generic AutoModel first (works for Qwen3-VL + Qwen2-VL on transformers >=4.45)
+        model = None
+        try:
+            from transformers import AutoModelForImageTextToText
+            model = AutoModelForImageTextToText.from_pretrained(self.model_id, **kwargs)
+        except Exception:
+            pass
+        if model is None:
+            try:
+                from transformers import AutoModelForVision2Seq
+                model = AutoModelForVision2Seq.from_pretrained(self.model_id, **kwargs)
+            except Exception:
+                pass
+        if model is None:
+            from transformers import Qwen2VLForConditionalGeneration
+            model = Qwen2VLForConditionalGeneration.from_pretrained(self.model_id, **kwargs)
+        self.model = model
         self.processor = AutoProcessor.from_pretrained(self.model_id)
         self._loaded = True
 
@@ -257,34 +278,47 @@ class _Noop:
         return ""
 
 
-def build_backend(name: str = "auto") -> object:
-    """Return a backend instance. Lazy-loads weights on first call."""
+def build_backend(name: str = "auto", model_id: Optional[str] = None,
+                  load_in_4bit: bool = True) -> object:
+    """Return a backend instance. Lazy-loads weights on first call.
+
+    model_id override examples:
+      qwen2vl:    "Qwen/Qwen2-VL-2B-Instruct" (5 GB fp16, fits 8 GB GPUs)
+                  "Qwen/Qwen2-VL-7B-Instruct" (default; needs 18 GB fp16 / 6 GB int4)
+      videollava: "LanguageBind/Video-LLaVA-7B-hf"
+    """
     name = (name or "auto").lower()
     if name == "qwen2vl":
         try:
             import transformers  # noqa: F401
             import qwen_vl_utils  # noqa: F401
-            return _Qwen2VL()
+            kw = {"load_in_4bit": load_in_4bit}
+            if model_id:
+                kw["model_id"] = model_id
+            return _Qwen2VL(**kw)
         except Exception:
             return _Noop()
     if name == "videollava":
         try:
             import transformers  # noqa: F401
             import av  # noqa: F401
-            return _VideoLLaVA()
+            return _VideoLLaVA(model_id=model_id) if model_id else _VideoLLaVA()
         except Exception:
             return _Noop()
     # auto
     try:
         import qwen_vl_utils  # noqa: F401
         from transformers import Qwen2VLForConditionalGeneration  # noqa: F401
-        return _Qwen2VL()
+        kw = {"load_in_4bit": load_in_4bit}
+        if model_id:
+            kw["model_id"] = model_id
+        return _Qwen2VL(**kw)
     except Exception:
         pass
     try:
         from transformers import VideoLlavaForConditionalGeneration  # noqa: F401
         import av  # noqa: F401
-        return _VideoLLaVA()
+        return _VideoLLaVA(model_id=model_id) if model_id else _VideoLLaVA()
     except Exception:
         pass
     return _Noop()
@@ -294,9 +328,11 @@ def build_backend(name: str = "auto") -> object:
 
 def describe_scene_groups(video_path: str,
                           groups: List[Tuple[float, float]],
-                          backend: str = "auto") -> List[Dict]:
+                          backend: str = "auto",
+                          model_id: Optional[str] = None,
+                          load_in_4bit: bool = True) -> List[Dict]:
     """Return one dict per (t0, t1) group."""
-    bk = build_backend(backend)
+    bk = build_backend(backend, model_id=model_id, load_in_4bit=load_in_4bit)
     out: List[Dict] = []
     for t0, t1 in groups:
         try:
@@ -307,8 +343,10 @@ def describe_scene_groups(video_path: str,
     return out
 
 
-def describe_whole_video(video_path: str, backend: str = "auto") -> str:
-    bk = build_backend(backend)
+def describe_whole_video(video_path: str, backend: str = "auto",
+                         model_id: Optional[str] = None,
+                         load_in_4bit: bool = True) -> str:
+    bk = build_backend(backend, model_id=model_id, load_in_4bit=load_in_4bit)
     try:
         return bk.describe_video(video_path)
     except Exception:

@@ -59,6 +59,7 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
         enable_narrative: bool = True, narrative_polish: bool = False,
         # Tier 3 — Video LLM
         enable_video_llm: bool = False, video_llm_backend: str = "auto",
+        video_llm_model: str = "", video_llm_4bit: bool = True,
         # Embeddings backend
         embed_backend: str = "clip",
         write_store: bool = True) -> VideoFeatures:
@@ -203,7 +204,9 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
             scene_groups = group_scenes(timeline)
             group_ranges = [(g.t0, g.t1) for g in scene_groups]
             vlm_results = video_llm_mod.describe_scene_groups(
-                work_video, group_ranges, backend=video_llm_backend)
+                work_video, group_ranges, backend=video_llm_backend,
+                model_id=(video_llm_model or None),
+                load_in_4bit=video_llm_4bit)
             for grp, res in zip(scene_groups, vlm_results):
                 for idx in grp.seg_indices:
                     f = timeline[idx].features
@@ -213,7 +216,9 @@ def run(src: str, storage_root: str = "storage", do_normalize: bool = True,
                     f.vlm_setting = res.get("setting")
                     f.vlm_mood = res.get("mood")
             vf.vlm_video_summary = video_llm_mod.describe_whole_video(
-                work_video, backend=video_llm_backend) or None
+                work_video, backend=video_llm_backend,
+                model_id=(video_llm_model or None),
+                load_in_4bit=video_llm_4bit) or None
             vf.vlm_backend = video_llm_backend
         except Exception as e:
             import sys
