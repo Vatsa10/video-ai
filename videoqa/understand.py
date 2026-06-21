@@ -13,9 +13,10 @@ _client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))
 _MODEL = os.environ.get("VIDEOQA_MODEL", "gpt-4o-mini")
 
 _SYS = (
-    "You are a video understanding engine. You receive a timestamped caption log "
-    "(one line per sampled frame). Synthesize it into a structured understanding of the "
-    "whole video. Return JSON with exactly these keys:\n"
+    "You are a video understanding engine. You receive a timestamped event log merging "
+    "visual frame descriptions ([visual]) and spoken-audio transcript ([speech]). Use both "
+    "modalities together. Synthesize a structured understanding of the whole video. "
+    "Return JSON with exactly these keys:\n"
     '  "summary": string — 2-4 sentences on what the video is about.\n'
     '  "timeline": array of {"t": number (seconds), "event": string} — key events in order.\n'
     '  "entities": array of strings — recurring people, objects, places, or text.\n'

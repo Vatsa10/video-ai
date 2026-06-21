@@ -10,7 +10,8 @@ import numpy as np
 from .caption import caption_many
 from .embed import Embedder
 from .frames import extract_keyframes
-from .store import add, reset, save_understanding
+from .store import add, reset, save_transcript, save_understanding
+from .transcribe import transcribe
 from .understand import synthesize
 
 
@@ -36,8 +37,14 @@ def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97
         captions=captions,
     )
 
-    # Understanding layer: synthesize the whole-video model from the caption log, store once.
-    log = "\n".join(f"{timestamps[i]:.1f}s: {c}" for i, c in zip(keep, captions))
+    # Audio layer: transcribe speech (timestamped) and persist it.
+    transcript = transcribe(video)
+    save_transcript(video_id, transcript)
+
+    # Understanding layer: synthesize over a merged visual + speech timeline, store once.
+    events = [(timestamps[i], f"[visual] {c}") for i, c in zip(keep, captions)]
+    events += [(s["start"], f"[speech] {s['text']}") for s in transcript]
+    log = "\n".join(f"{t:.1f}s: {e}" for t, e in sorted(events))
     save_understanding(video_id, synthesize(log))
     return len(keep)
 

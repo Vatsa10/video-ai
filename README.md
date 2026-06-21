@@ -42,7 +42,8 @@ installed transformers, CLIP is the same idea and loads clean.)
 | Sample keyframes (ffmpeg, uniform interval) | `frames.py` | local |
 | Embed frames + text query (CLIP) | `embed.py` | local GPU/CPU |
 | Per-frame vision analysis → captions | `caption.py` | cloud LLM (concurrent) |
-| **Synthesize understanding** (summary/timeline/entities/scenes) | `understand.py` | cloud LLM, 1 pass |
+| Speech → timestamped transcript (Whisper) | `transcribe.py` | OpenAI ASR |
+| **Synthesize understanding** over visual + speech (summary/timeline/entities/scenes) | `understand.py` | cloud LLM, 1 pass |
 | Vector + understanding store (Chroma; Cloud or local) | `store.py` | local/cloud |
 | Ingest: sample → embed → dedup → caption → understand → store | `ingest.py` | once per video |
 | Ask: understanding + caption log + top-k frames → answer | `ask.py` | ~1 cloud call |
@@ -115,9 +116,16 @@ python -m videoqa.cli ask myclip "what is the person holding?"
 3. Add secrets in **Space → Settings → Secrets**: `OPENAI_API_KEY`, `VIDEOQA_MODEL`,
    `CHROMADB_API_KEY`, `CHROMADB_TENANT`, `CHROMADB_DATABASE`. Never commit `.env`.
 
+## Audio
+
+Speech is transcribed (timestamped) and **merged with the visual log before synthesis**,
+so the understanding and Q&A use both modalities. ASR is OpenAI `whisper-1` by default
+(`VIDEOQA_ASR_MODEL`); always hits OpenAI even if chat runs on Kimi. Single-shot up to
+~13 min of audio; silent videos are handled (no speech). For max accuracy on a GPU box,
+swap `transcribe.py` to local faster-whisper `large-v3` (same `{start, text}` shape).
+
 ## Limits / next
 
-- **No audio.** Speech/sound ignored — biggest gap. Add Whisper → fold transcript into
-  the understanding pass.
 - **No true temporal model.** Frames analyzed independently; fine-grained motion is weak.
 - **Uniform sampling.** Swap `frames.py` to ffmpeg scene-detection if frame count bloats.
+- **Long audio** (>~13 min) needs chunking in `transcribe.py`.

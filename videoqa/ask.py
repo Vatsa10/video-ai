@@ -16,8 +16,10 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .embed import Embedder
-from .store import all_frames, load_understanding, query
+import numpy as np
+
+from .embed import Embedder, text_embed
+from .store import all_frames, load_transcript, load_understanding, query
 from .understand import to_markdown
 
 load_dotenv()
@@ -30,8 +32,11 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
     log = "\n".join(f"{f['t']:.1f}s: {f['caption']}" for f in frames)
     understanding = to_markdown(load_understanding(video_id))
 
-    # k most relevant frames by embedding, attached as images for visual detail
-    relevant = query(video_id, Embedder().text(question), k) if k else []
+    transcript = load_transcript(video_id)
+    speech = "\n".join(f"{s['start']:.1f}s: {s['text']}" for s in transcript)
+
+    # k most relevant frames via hybrid retrieval (CLIP visual + caption-text), attached as images
+    relevant = _hybrid_frames(video_id, question, k) if k else []
 
     content = [
         {
@@ -40,7 +45,12 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
         },
         {
             "type": "text",
-            "text": "Caption log of every frame (timestamp: description):\n\n" + log,
+            "text": "Visual caption log (timestamp: frame description):\n\n" + log,
+        },
+        {
+            "type": "text",
+            "text": "Speech transcript (timestamp: spoken words):\n\n"
+            + (speech or "[no speech / no audio]"),
         },
     ]
     if relevant:
@@ -68,6 +78,33 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
         messages=[{"role": "user", "content": content}],
     )
     return resp.choices[0].message.content
+
+
+def _hybrid_frames(video_id: str, question: str, k: int, rrf: int = 60) -> list[dict]:
+    """CLIP visual recall + caption-text rerank, fused by Reciprocal Rank Fusion.
+
+    Two rankings of the same candidates: by CLIP image similarity and by semantic
+    question-vs-caption similarity. RRF combines them without score normalization.
+    """
+    cands = query(video_id, Embedder().text(question), n=max(12, k * 3))
+    if len(cands) <= k:
+        return cands
+
+    visual_rank = sorted(range(len(cands)), key=lambda i: cands[i]["distance"])
+
+    q = text_embed(question)
+    caps = text_embed([c["caption"] for c in cands])
+    text_sim = caps @ q  # both normalized -> cosine
+    text_rank = sorted(range(len(cands)), key=lambda i: -text_sim[i])
+
+    score = np.zeros(len(cands))
+    for rank, i in enumerate(visual_rank):
+        score[i] += 1.0 / (rrf + rank)
+    for rank, i in enumerate(text_rank):
+        score[i] += 1.0 / (rrf + rank)
+
+    top = sorted(range(len(cands)), key=lambda i: -score[i])[:k]
+    return [cands[i] for i in top]
 
 
 def _data_url(path: str) -> str:

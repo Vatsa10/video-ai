@@ -35,8 +35,15 @@ def caption_one(path: str) -> str:
     return resp.choices[0].message.content.strip()
 
 
-def caption_many(paths: list[str], workers: int = 8) -> list[str]:
-    """Caption frames concurrently — I/O-bound network calls, one-time at ingest."""
+_WORKERS = int(os.environ.get("VIDEOQA_CAPTION_WORKERS", "16"))
+
+
+def caption_many(paths: list[str], workers: int = _WORKERS) -> list[str]:
+    """Caption frames concurrently — I/O-bound network calls, one-time at ingest.
+
+    16 workers by default (override VIDEOQA_CAPTION_WORKERS). Raise if your API tier has
+    headroom; lower if you hit rate limits.
+    """
     with ThreadPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(caption_one, paths))
 
