@@ -6,3 +6,4 @@ pillow
 numpy
 # Cloud reasoning (OpenAI SDK also drives Kimi/Moonshot via base_url)
 openai
+python-dotenv

@@ -12,11 +12,13 @@ Latency = SigLIP text embed (ms) + Chroma search (ms) + one LLM call. No local V
 import base64
 import os
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
 from .embed import Embedder
 from .store import query
 
+load_dotenv()  # idempotent; ensures .env is loaded even if ask.py used standalone
 _client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))  # key from OPENAI_API_KEY
 _MODEL = os.environ.get("VIDEOQA_MODEL", "gpt-4o-mini")
 
