@@ -63,7 +63,6 @@ with gr.Blocks(title="videoqa") as demo:
     gr.ChatInterface(
         fn=chat,
         additional_inputs=[vid_state],
-        type="messages",
         title="Chat",
     )
 

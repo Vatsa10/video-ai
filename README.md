@@ -1,3 +1,14 @@
+---
+title: videoqa
+emoji: 🎬
+colorFrom: indigo
+colorTo: purple
+sdk: gradio
+app_file: app.py
+pinned: false
+short_description: Chat with any video — frame retrieval + vision LLM, ephemeral.
+---
+
 # videoqa
 
 Quick video Q&A pipeline. Local GPU does retrieval; cloud LLM does reasoning.
