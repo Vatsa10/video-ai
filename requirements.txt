@@ -1,0 +1,8 @@
+# Local GPU embedding + retrieval
+torch                # install the CUDA build matching your GPU (see README)
+transformers
+chromadb
+pillow
+numpy
+# Cloud reasoning (OpenAI SDK also drives Kimi/Moonshot via base_url)
+openai

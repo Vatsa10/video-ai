@@ -1,4 +1,5 @@
-storage/cache/
+storage/
+_frames_test/
 target/
 __pycache__/
 *.pyc
