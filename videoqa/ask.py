@@ -1,13 +1,14 @@
-"""Query: question -> retrieve top-k keyframes -> LLM answers over the images.
+"""Query: full-video caption log (text) + top-k relevant frames (images) -> LLM answer.
 
-Uses the OpenAI SDK, which also speaks Kimi/Moonshot (OpenAI-compatible). Pick provider
-via env:
-  OpenAI:  OPENAI_API_KEY=...                         (default model gpt-4o-mini)
+The whole video is always in context as a timestamped caption log (cheap text, every
+frame covered). On top of that, the frames most relevant to the question are attached as
+images for visual detail. Best of both: full coverage + visual grounding, one LLM call.
+
+Provider via env (OpenAI SDK also speaks Kimi/Moonshot):
+  OpenAI:  OPENAI_API_KEY=...                     (default model gpt-4o-mini)
   Kimi:    OPENAI_API_KEY=<kimi key>
            VIDEOQA_BASE_URL=https://api.moonshot.ai/v1
            VIDEOQA_MODEL=moonshot-v1-8k-vision-preview
-
-Latency = SigLIP text embed (ms) + Chroma search (ms) + one LLM call. No local VLM.
 """
 import base64
 import os
@@ -16,28 +17,41 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from .embed import Embedder
-from .store import query
+from .store import all_frames, query
 
-load_dotenv()  # idempotent; ensures .env is loaded even if ask.py used standalone
-_client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))  # key from OPENAI_API_KEY
+load_dotenv()
+_client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))
 _MODEL = os.environ.get("VIDEOQA_MODEL", "gpt-4o-mini")
 
 
 def ask(video_id: str, question: str, k: int = 4) -> str:
-    qvec = Embedder().text(question)
-    hits = query(video_id, qvec, k)
+    frames = all_frames(video_id)  # whole video, time-ordered
+    log = "\n".join(f"{f['t']:.1f}s: {f['caption']}" for f in frames)
 
-    content = []
-    for h in hits:
-        content.append({"type": "text", "text": f"[Frame at {h['t']:.1f}s]"})
+    # k most relevant frames by embedding, attached as images for visual detail
+    relevant = query(video_id, Embedder().text(question), k) if k else []
+
+    content = [
+        {
+            "type": "text",
+            "text": "Caption log of every frame in the video (timestamp: description):\n\n"
+            + log,
+        }
+    ]
+    if relevant:
         content.append(
-            {"type": "image_url", "image_url": {"url": _data_url(h["frame"])}}
+            {"type": "text", "text": "\nThe frames most relevant to the question, attached:"}
         )
+        for h in relevant:
+            content.append({"type": "text", "text": f"[Frame at {h['t']:.1f}s]"})
+            content.append(
+                {"type": "image_url", "image_url": {"url": _data_url(h["frame"])}}
+            )
     content.append(
         {
             "type": "text",
-            "text": "These are the most relevant frames from a video, with timestamps. "
-            "Answer using only what is visible. Cite timestamps.\n\nQuestion: " + question,
+            "text": "\nUsing the full caption log plus the attached frames, answer the "
+            "question. Cite timestamps.\n\nQuestion: " + question,
         }
     )
 
@@ -51,5 +65,4 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
 
 def _data_url(path: str) -> str:
     with open(path, "rb") as f:
-        b64 = base64.standard_b64encode(f.read()).decode()
-    return f"data:image/jpeg;base64,{b64}"
+        return "data:image/jpeg;base64," + base64.standard_b64encode(f.read()).decode()

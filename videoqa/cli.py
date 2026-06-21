@@ -21,7 +21,7 @@ def main():
     pa = sub.add_parser("ask")
     pa.add_argument("id")
     pa.add_argument("question")
-    pa.add_argument("-k", type=int, default=4)
+    pa.add_argument("-k", type=int, default=4, help="frames attached as images (0 = captions only)")
 
     a = p.parse_args()
     if a.cmd == "ingest":

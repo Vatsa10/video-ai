@@ -1,6 +1,6 @@
 # Local GPU embedding + retrieval
 torch                # install the CUDA build matching your GPU (see README)
-transformers
+sentence-transformers  # CLIP image+text embeddings
 chromadb
 pillow
 numpy

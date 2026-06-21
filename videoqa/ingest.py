@@ -1,9 +1,14 @@
-"""Offline, one-time per video: sample frames -> embed -> dedup near-duplicates -> store."""
+"""Offline, one-time per video: sample -> embed -> dedup -> caption every kept frame -> store.
+
+Captioning each kept frame once is the accuracy win: queries later read all captions
+(cheap text) instead of resending a handful of images, so the whole video is considered.
+"""
 import numpy as np
 
+from .caption import caption_many
 from .embed import Embedder
 from .frames import extract_keyframes
-from .store import add
+from .store import add, reset
 
 
 def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97) -> int:
@@ -15,8 +20,18 @@ def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97
     vecs = Embedder().images(list(paths))
 
     keep = _dedup(vecs, dedup)
-    ids = [f"{video_id}_{i}" for i in keep]
-    add(video_id, ids, vecs[keep], [timestamps[i] for i in keep], [paths[i] for i in keep])
+    kept_paths = [paths[i] for i in keep]
+    captions = caption_many(kept_paths)  # one vision call per kept frame, concurrent
+
+    reset(video_id)  # drop any stale collection (e.g. old embedding dim) before re-adding
+    add(
+        video_id,
+        ids=[f"{video_id}_{i}" for i in keep],
+        embeddings=vecs[keep],
+        timestamps=[timestamps[i] for i in keep],
+        frame_paths=kept_paths,
+        captions=captions,
+    )
     return len(keep)
 
 
