@@ -2,6 +2,8 @@
 
 Captioning each kept frame once is the accuracy win: queries later read all captions
 (cheap text) instead of resending a handful of images, so the whole video is considered.
+Privacy: only vectors + captions go to the DB — no images are stored. Frame files stay
+local and transient, and the whole session (DB collection + frames) is wiped on cleanup.
 """
 import numpy as np
 

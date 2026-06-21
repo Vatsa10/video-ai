@@ -43,6 +43,8 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
             {"type": "text", "text": "\nThe frames most relevant to the question, attached:"}
         )
         for h in relevant:
+            if not os.path.exists(h["frame"]):
+                continue  # frame wiped; caption log still covers it
             content.append({"type": "text", "text": f"[Frame at {h['t']:.1f}s]"})
             content.append(
                 {"type": "image_url", "image_url": {"url": _data_url(h["frame"])}}
