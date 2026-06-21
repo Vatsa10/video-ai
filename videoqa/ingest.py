@@ -10,7 +10,8 @@ import numpy as np
 from .caption import caption_many
 from .embed import Embedder
 from .frames import extract_keyframes
-from .store import add, reset
+from .store import add, reset, save_understanding
+from .understand import synthesize
 
 
 def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97) -> int:
@@ -34,6 +35,10 @@ def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97
         frame_paths=kept_paths,
         captions=captions,
     )
+
+    # Understanding layer: synthesize the whole-video model from the caption log, store once.
+    log = "\n".join(f"{timestamps[i]:.1f}s: {c}" for i, c in zip(keep, captions))
+    save_understanding(video_id, synthesize(log))
     return len(keep)
 
 

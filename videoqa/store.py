@@ -3,6 +3,7 @@
 Uses Chroma Cloud when CHROMADB_API_KEY/TENANT/DATABASE are set (real deployment),
 otherwise a local persistent DB under storage/ (dev). Same API either way.
 """
+import json
 import os
 
 import chromadb
@@ -32,10 +33,30 @@ def collection(video_id: str):
 
 
 def reset(video_id: str):
+    for name in (video_id, _u_name(video_id)):  # frames + understanding
+        try:
+            _client.delete_collection(name)
+        except Exception:
+            pass  # didn't exist yet
+
+
+def _u_name(video_id: str) -> str:
+    return f"u_{video_id}"
+
+
+def save_understanding(video_id: str, data: dict):
+    # Stored as one doc in a sidecar collection. Dummy 1-d embedding — never queried by vector.
+    _client.get_or_create_collection(_u_name(video_id)).upsert(
+        ids=["u"], embeddings=[[0.0]], documents=[json.dumps(data)]
+    )
+
+
+def load_understanding(video_id: str) -> dict:
     try:
-        _client.delete_collection(video_id)
+        res = _client.get_collection(_u_name(video_id)).get(ids=["u"])
+        return json.loads(res["documents"][0])
     except Exception:
-        pass  # didn't exist yet
+        return {}
 
 
 def add(video_id: str, ids, embeddings, timestamps, frame_paths, captions):

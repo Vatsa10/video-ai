@@ -12,6 +12,8 @@ import gradio as gr
 from .ask import ask
 from .cleanup import sweep, track, wipe, wipe_all
 from .ingest import ingest
+from .store import load_understanding
+from .understand import to_markdown
 
 TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
 
@@ -36,11 +38,12 @@ def process(video_path, interval, prev_id):
     if prev_id:
         wipe(prev_id)  # user loaded a new video — drop the old one's data
     if not video_path:
-        return None, "Upload a video first."
+        return None, "Upload a video first.", ""
     vid = _video_id(video_path)
     n = ingest(video_path, vid, float(interval))
     track(vid)
-    return vid, f"Ready — {n} keyframes indexed. Ask away below."
+    understanding = to_markdown(load_understanding(vid))
+    return vid, f"Ready — {n} keyframes analyzed. Ask away below.", understanding
 
 
 def chat(message, history, video_id):
@@ -50,23 +53,30 @@ def chat(message, history, video_id):
 
 
 with gr.Blocks(title="videoqa") as demo:
-    gr.Markdown("# videoqa — ask questions about any video\n_Data is erased when you leave._")
+    gr.Markdown(
+        "# videoqa — video understanding pipeline\n"
+        "Upload a video → it's analyzed frame-by-frame and synthesized into a "
+        "structured understanding. Then explore it or ask questions. "
+        "_Data is erased when you leave._"
+    )
     vid_state = gr.State(None)
 
     with gr.Row():
         video = gr.Video(label="Video")
         with gr.Column():
             interval = gr.Slider(0.5, 5.0, value=1.0, step=0.5, label="Seconds between frames")
-            go = gr.Button("Process", variant="primary")
+            go = gr.Button("Analyze", variant="primary")
             status = gr.Textbox(label="Status", interactive=False)
+
+    understanding_md = gr.Markdown("_Analyze a video to see its understanding._")
 
     gr.ChatInterface(
         fn=chat,
         additional_inputs=[vid_state],
-        title="Chat",
+        title="Ask",
     )
 
-    go.click(process, [video, interval, vid_state], [vid_state, status])
+    go.click(process, [video, interval, vid_state], [vid_state, status, understanding_md])
     demo.unload(lambda: sweep(TTL_SECONDS))  # fires on tab/session close
 
 if __name__ == "__main__":

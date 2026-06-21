@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from .embed import Embedder
-from .store import all_frames, query
+from .store import all_frames, load_understanding, query
+from .understand import to_markdown
 
 load_dotenv()
 _client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))
@@ -27,6 +28,7 @@ _MODEL = os.environ.get("VIDEOQA_MODEL", "gpt-4o-mini")
 def ask(video_id: str, question: str, k: int = 4) -> str:
     frames = all_frames(video_id)  # whole video, time-ordered
     log = "\n".join(f"{f['t']:.1f}s: {f['caption']}" for f in frames)
+    understanding = to_markdown(load_understanding(video_id))
 
     # k most relevant frames by embedding, attached as images for visual detail
     relevant = query(video_id, Embedder().text(question), k) if k else []
@@ -34,9 +36,12 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
     content = [
         {
             "type": "text",
-            "text": "Caption log of every frame in the video (timestamp: description):\n\n"
-            + log,
-        }
+            "text": "Structured understanding of the video:\n\n" + understanding,
+        },
+        {
+            "type": "text",
+            "text": "Caption log of every frame (timestamp: description):\n\n" + log,
+        },
     ]
     if relevant:
         content.append(
