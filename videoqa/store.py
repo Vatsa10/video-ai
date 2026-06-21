@@ -1,7 +1,28 @@
-"""Chroma vector store. One collection per video. Local, zero-config, persistent."""
-import chromadb
+"""Chroma vector store. One collection per video.
 
-_client = chromadb.PersistentClient(path="storage/chroma")
+Uses Chroma Cloud when CHROMADB_API_KEY/TENANT/DATABASE are set (real deployment),
+otherwise a local persistent DB under storage/ (dev). Same API either way.
+"""
+import os
+
+import chromadb
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _make_client():
+    key = os.environ.get("CHROMADB_API_KEY")
+    if key:
+        return chromadb.CloudClient(
+            api_key=key,
+            tenant=os.environ["CHROMADB_TENANT"],
+            database=os.environ["CHROMADB_DATABASE"],
+        )
+    return chromadb.PersistentClient(path="storage/chroma")
+
+
+_client = _make_client()
 
 
 def collection(video_id: str):
