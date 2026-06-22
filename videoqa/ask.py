@@ -27,26 +27,20 @@ _client = OpenAI(base_url=os.environ.get("VIDEOQA_BASE_URL"))
 _MODEL = os.environ.get("VIDEOQA_MODEL", "gpt-4o-mini")
 
 
-def ask(video_id: str, question: str, k: int = 4) -> str:
-    frames = all_frames(video_id)  # whole video, time-ordered
+def _context(video_id: str, question: str, k: int) -> list[dict]:
+    """Shared context: understanding + full caption log + speech + top-k relevant frames."""
+    frames = all_frames(video_id)
     log = "\n".join(f"{f['t']:.1f}s: {f['caption']}" for f in frames)
     understanding = to_markdown(load_understanding(video_id))
 
     transcript = load_transcript(video_id)
     speech = "\n".join(f"{s['start']:.1f}s: {s['text']}" for s in transcript)
 
-    # k most relevant frames via hybrid retrieval (CLIP visual + caption-text), attached as images
     relevant = _hybrid_frames(video_id, question, k) if k else []
 
     content = [
-        {
-            "type": "text",
-            "text": "Structured understanding of the video:\n\n" + understanding,
-        },
-        {
-            "type": "text",
-            "text": "Visual caption log (timestamp: frame description):\n\n" + log,
-        },
+        {"type": "text", "text": "Structured understanding of the video:\n\n" + understanding},
+        {"type": "text", "text": "Visual caption log (timestamp: frame description):\n\n" + log},
         {
             "type": "text",
             "text": "Speech transcript (timestamp: spoken words):\n\n"
@@ -59,11 +53,16 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
         )
         for h in relevant:
             if not os.path.exists(h["frame"]):
-                continue  # frame wiped; caption log still covers it
+                continue
             content.append({"type": "text", "text": f"[Frame at {h['t']:.1f}s]"})
             content.append(
                 {"type": "image_url", "image_url": {"url": _data_url(h["frame"])}}
             )
+    return content
+
+
+def ask(video_id: str, question: str, k: int = 4) -> str:
+    content = _context(video_id, question, k)
     content.append(
         {
             "type": "text",
@@ -71,13 +70,34 @@ def ask(video_id: str, question: str, k: int = 4) -> str:
             "question. Cite timestamps.\n\nQuestion: " + question,
         }
     )
-
     resp = _client.chat.completions.create(
-        model=_MODEL,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": content}],
+        model=_MODEL, max_tokens=1024, messages=[{"role": "user", "content": content}]
     )
     return resp.choices[0].message.content
+
+
+def ask_mc(video_id: str, question: str, options: list[str], k: int = 4) -> int:
+    """Multiple-choice (benchmark mode): return the index of the best option."""
+    content = _context(video_id, question, k)
+    opts = "\n".join(f"{i}. {o}" for i, o in enumerate(options))
+    content.append(
+        {
+            "type": "text",
+            "text": f"\nQuestion: {question}\n\nOptions:\n{opts}\n\n"
+            "Reply with ONLY the single digit index of the best option. No other text.",
+        }
+    )
+    resp = _client.chat.completions.create(
+        model=_MODEL, max_tokens=5, messages=[{"role": "user", "content": content}]
+    )
+    return _parse_choice(resp.choices[0].message.content, len(options))
+
+
+def _parse_choice(text: str, n: int) -> int:
+    for ch in text or "":
+        if ch.isdigit() and int(ch) < n:
+            return int(ch)
+    return 0  # fallback: first option
 
 
 def _hybrid_frames(video_id: str, question: str, k: int, rrf: int = 60) -> list[dict]:

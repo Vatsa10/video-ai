@@ -19,20 +19,23 @@ _PROMPT = (
 
 
 def caption_one(path: str) -> str:
-    resp = _client.chat.completions.create(
-        model=_MODEL,
-        max_tokens=150,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": _PROMPT},
-                    {"type": "image_url", "image_url": {"url": _data_url(path)}},
-                ],
-            }
-        ],
-    )
-    return resp.choices[0].message.content.strip()
+    try:
+        resp = _client.chat.completions.create(
+            model=_MODEL,
+            max_tokens=150,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": _PROMPT},
+                        {"type": "image_url", "image_url": {"url": _data_url(path)}},
+                    ],
+                }
+            ],
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:  # one transient failure must not abort a whole ingest
+        return f"[caption unavailable: {type(e).__name__}]"
 
 
 _WORKERS = int(os.environ.get("VIDEOQA_CAPTION_WORKERS", "16"))

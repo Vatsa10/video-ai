@@ -17,12 +17,20 @@ from .understand import to_markdown
 
 TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
 
-wipe_all()  # clean slate on startup — no leftovers from a previous run
+try:
+    wipe_all()  # clean slate on startup — must never block/crash app boot (Chroma hiccup)
+except Exception as e:
+    print(f"[startup] wipe_all skipped: {type(e).__name__}: {e}")
 
 
 def _sweeper():
-    sweep(TTL_SECONDS)
-    threading.Timer(300, _sweeper).start()  # re-check every 5 min, even with no traffic
+    try:
+        sweep(TTL_SECONDS)
+    except Exception as e:
+        print(f"[sweeper] {type(e).__name__}: {e}")
+    t = threading.Timer(300, _sweeper)  # re-check every 5 min, even with no traffic
+    t.daemon = True  # don't keep the process alive / wedge shutdown
+    t.start()
 
 
 _sweeper()
@@ -80,4 +88,4 @@ with gr.Blocks(title="videoqa") as demo:
     demo.unload(lambda: sweep(TTL_SECONDS))  # fires on tab/session close
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(ssr_mode=False)

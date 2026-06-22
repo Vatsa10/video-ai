@@ -14,7 +14,8 @@ load_dotenv()
 
 def _make_client():
     key = os.environ.get("CHROMADB_API_KEY")
-    if key:
+    force_local = os.environ.get("VIDEOQA_FORCE_LOCAL")  # eval/benchmarks: stay off the cloud
+    if key and not force_local:
         return chromadb.CloudClient(
             api_key=key,
             tenant=os.environ["CHROMADB_TENANT"],

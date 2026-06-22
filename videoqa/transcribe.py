@@ -33,6 +33,9 @@ def transcribe(video: str) -> list[dict]:
             )
         segs = getattr(res, "segments", None) or []
         return [{"start": float(s.start), "text": s.text.strip()} for s in segs]
+    except Exception as e:  # ASR is optional — never let it abort an ingest
+        print(f"[transcribe] skipped audio: {type(e).__name__}: {e}")
+        return []
     finally:
         Path(wav).unlink(missing_ok=True)
 
