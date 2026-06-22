@@ -11,7 +11,7 @@ from pathlib import Path
 import gradio as gr
 
 from .ask import ask
-from .cleanup import sweep, track, wipe, wipe_all
+from .cleanup import sweep, track, wipe
 from .ingest import ingest
 from .store import load_understanding
 from .understand import to_markdown
@@ -20,16 +20,13 @@ TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
 
 
 def _maintenance():
-    """Startup wipe + periodic TTL sweep, all OFF the import/launch path.
+    """Periodic TTL sweep only — no Chroma calls at boot.
 
-    Runs in a daemon thread so module import returns instantly and the server binds the
-    port fast (HF health check passes). Chroma calls here also stop spawning event loops
-    on the main thread (the source of the harmless asyncio __del__ noise at startup).
+    Daemon thread, off the import/launch path. No startup `wipe_all()`: connecting to
+    Chroma Cloud at boot spawns asyncio loops (the harmless `__del__` noise) and delays
+    the port bind. On a fresh start `_seen` is empty, so sweep() makes zero Chroma calls
+    until a video is actually processed. Per-video wipe + TTL still enforce ephemerality.
     """
-    try:
-        wipe_all()
-    except Exception as e:
-        print(f"[startup] wipe_all skipped: {type(e).__name__}: {e}")
     while True:
         time.sleep(300)
         try:
