@@ -14,19 +14,24 @@ from .ask import ask
 from .cleanup import sweep, track, wipe
 from .ingest import ingest
 from .store import load_understanding
-from .understand import to_markdown
+from .understand import details_md, summary_md
 
 TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
 
 
 def _maintenance():
-    """Periodic TTL sweep only — no Chroma calls at boot.
+    """Warm the embedding models, then run the periodic TTL sweep. All off the launch path.
 
-    Daemon thread, off the import/launch path. No startup `wipe_all()`: connecting to
-    Chroma Cloud at boot spawns asyncio loops (the harmless `__del__` noise) and delays
-    the port bind. On a fresh start `_seen` is empty, so sweep() makes zero Chroma calls
-    until a video is actually processed. Per-video wipe + TTL still enforce ephemerality.
+    Daemon thread so module import returns instantly and the port binds fast. Warming CLIP
+    + bge here means the model download/load happens during boot, not on the user's first
+    Analyze. No startup Chroma call (`_seen` empty -> sweep() is a no-op until a video runs).
     """
+    try:
+        from .embed import warm
+
+        warm()  # pay the model load now, while the user is still uploading
+    except Exception as e:
+        print(f"[warm] {type(e).__name__}: {e}")
     while True:
         time.sleep(300)
         try:
@@ -48,26 +53,26 @@ def process(video_path, interval, prev_id):
     if prev_id:
         wipe(prev_id)  # user loaded a new video — drop the old one's data
     if not video_path:
-        return None, "Upload a video first.", ""
+        return None, "Upload a video first.", summary_md({}), "", gr.update()
     vid = _video_id(video_path)
     n = ingest(video_path, vid, float(interval))
     track(vid)
-    understanding = to_markdown(load_understanding(vid))
-    return vid, f"Ready — {n} keyframes analyzed. Ask away below.", understanding
+    u = load_understanding(vid)
+    # open the chat accordion now that there's something to ask about
+    return vid, f"Analyzed {n} keyframes.", summary_md(u), details_md(u), gr.update(open=True)
 
 
 def chat(message, history, video_id):
     if not video_id:
-        return "Process a video first (top panel)."
+        return "Analyze a video first (top panel)."
     return ask(video_id, message)
 
 
 with gr.Blocks(title="videoqa") as demo:
     gr.Markdown(
-        "# videoqa — video understanding pipeline\n"
-        "Upload a video → it's analyzed frame-by-frame and synthesized into a "
-        "structured understanding. Then explore it or ask questions. "
-        "_Data is erased when you leave._"
+        "# 🎬 videoqa — understand any video\n"
+        "Upload a video and it tells you **what happens in it** — synthesized from "
+        "frame-by-frame vision analysis and the spoken audio. _Data is erased when you leave._"
     )
     vid_state = gr.State(None)
 
@@ -78,15 +83,21 @@ with gr.Blocks(title="videoqa") as demo:
             go = gr.Button("Analyze", variant="primary")
             status = gr.Textbox(label="Status", interactive=False)
 
-    understanding_md = gr.Markdown("_Analyze a video to see its understanding._")
+    # Hero: the narrative of what happened
+    summary_view = gr.Markdown(summary_md({}))
 
-    gr.ChatInterface(
-        fn=chat,
-        additional_inputs=[vid_state],
-        title="Ask",
+    # Supporting structure
+    details_view = gr.Markdown("")
+
+    # Asking is secondary — collapsed by default, auto-opens after Analyze
+    with gr.Accordion("💬 Ask about specific moments", open=False) as chat_acc:
+        gr.ChatInterface(fn=chat, additional_inputs=[vid_state])
+
+    go.click(
+        process,
+        [video, interval, vid_state],
+        [vid_state, status, summary_view, details_view, chat_acc],
     )
-
-    go.click(process, [video, interval, vid_state], [vid_state, status, understanding_md])
     demo.unload(lambda: sweep(TTL_SECONDS))  # fires on tab/session close
 
 if __name__ == "__main__":

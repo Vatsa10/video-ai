@@ -48,3 +48,9 @@ class Embedder:
 def text_embed(texts):
     """Semantic text embeddings (bge). Accepts a str or list[str]."""
     return _text().encode(texts, normalize_embeddings=True, convert_to_numpy=True)
+
+
+def warm():
+    """Preload both models (call at startup so the first Analyze skips the cold load)."""
+    _clip()
+    _text()

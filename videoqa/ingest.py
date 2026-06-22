@@ -5,6 +5,8 @@ Captioning each kept frame once is the accuracy win: queries later read all capt
 Privacy: only vectors + captions go to the DB — no images are stored. Frame files stay
 local and transient, and the whole session (DB collection + frames) is wiped on cleanup.
 """
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 
 from .caption import caption_many
@@ -25,7 +27,12 @@ def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97
 
     keep = _dedup(vecs, dedup)
     kept_paths = [paths[i] for i in keep]
-    captions = caption_many(kept_paths)  # one vision call per kept frame, concurrent
+
+    # Transcription is independent of frames — run it concurrently with captioning.
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        transcript_future = ex.submit(transcribe, video)
+        captions = caption_many(kept_paths)  # concurrent vision calls (own worker pool)
+        transcript = transcript_future.result()
 
     reset(video_id)  # drop any stale collection (e.g. old embedding dim) before re-adding
     add(
@@ -36,9 +43,6 @@ def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97
         frame_paths=kept_paths,
         captions=captions,
     )
-
-    # Audio layer: transcribe speech (timestamped) and persist it.
-    transcript = transcribe(video)
     save_transcript(video_id, transcript)
 
     # Understanding layer: synthesize over a merged visual + speech timeline, store once.
