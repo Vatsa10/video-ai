@@ -6,56 +6,69 @@ colorTo: purple
 sdk: gradio
 app_file: app.py
 pinned: false
-short_description: Video understanding AI — analyze any video, then explore it.
+short_description: Video understanding AI — tells you what happens in any video.
 ---
 
 # videoqa — video understanding pipeline
 
-Not a video RAG bolt-on. The pipeline **analyzes every frame** with a vision LLM and
-**synthesizes a video-level understanding** (summary, timeline, entities, scenes).
-Q&A, search, and description are all consumers of that understanding — retrieval is just
-one output.
+Upload a video and it tells you **what happens in it** — a narrative summary synthesized
+from frame-by-frame vision analysis and the spoken audio. Asking follow-up questions is a
+secondary feature; the product leads with understanding, not a Q&A box.
+
+Not a video-RAG bolt-on: every frame is analyzed, then synthesized into a video-level
+model (summary, timeline, entities, scenes). Q&A and frame search are consumers of that
+understanding — retrieval is one output, not the core.
 
 ```
-video ──ffmpeg──▶ keyframes ──CLIP(GPU)──▶ vector index
+video ──ffmpeg──▶ keyframes ──CLIP──▶ vector index
                        │
                        ├─ per-frame vision analysis (captions)
+                       ├─ speech → timestamped transcript (Whisper)
                        ▼
-        understanding layer:  summary · timeline · entities · scenes   (1 LLM pass, stored)
+   understanding layer:  summary · timeline · entities · scenes   (1 LLM pass over both modalities, stored)
                        ▼
-        consumers:  Q&A · semantic frame search · description
+   consumers:  "what happened" summary · Q&A · semantic frame search
 ```
 
 **Core idea:** per-frame understanding, synthesized into a structured video-level model.
-Every frame is described once at ingest; one more LLM pass turns the caption log into a
-structured understanding. Queries read that understanding plus the most relevant frames.
+Every frame is captioned once at ingest; one more LLM pass turns the merged visual+speech
+log into the understanding. Queries read that understanding plus the most relevant frames.
 
-**Why CLIP, not JEPA:** retrieval needs *text-aligned* embeddings so a text query can
-find frames. V-JEPA has no text alignment — great for classification/similarity, wrong
-tool for text-driven understanding. (CLIP here; SigLIP's HF tokenizer was broken on the
-installed transformers, CLIP is the same idea and loads clean.)
+**Why CLIP, not JEPA:** retrieval needs *text-aligned* embeddings so a text query can find
+frames. V-JEPA has no text alignment — great for classification/similarity, wrong tool for
+text-driven retrieval. (CLIP `clip-ViT-B-32`; SigLIP's HF tokenizer was broken on the
+installed transformers, CLIP is the same idea and loads clean. JEPA is the planned *motion*
+stream — see Roadmap.)
 
 ## Pipeline
 
 | Stage | File | Runs |
 |-------|------|------|
 | Sample keyframes (ffmpeg, uniform interval) | `frames.py` | local |
-| Embed frames + text query (CLIP) | `embed.py` | local GPU/CPU |
+| Embed frames + text (CLIP) · semantic text (bge) | `embed.py` | local GPU/CPU |
 | Per-frame vision analysis → captions | `caption.py` | cloud LLM (concurrent) |
 | Speech → timestamped transcript (Whisper) | `transcribe.py` | OpenAI ASR |
-| **Synthesize understanding** over visual + speech (summary/timeline/entities/scenes) | `understand.py` | cloud LLM, 1 pass |
-| Vector + understanding store (Chroma; Cloud or local) | `store.py` | local/cloud |
-| Ingest: sample → embed → dedup → caption → understand → store | `ingest.py` | once per video |
-| Ask: understanding + caption log + top-k frames → answer | `ask.py` | ~1 cloud call |
-| Ephemeral cleanup (wipe on leave / TTL / startup) | `cleanup.py` | — |
-| Web UI (Gradio) | `app.py` | — |
+| **Synthesize understanding** over visual + speech | `understand.py` | cloud LLM, 1 pass |
+| Vector + understanding + transcript store (Chroma) | `store.py` | local/cloud |
+| Ingest: sample → embed → dedup → caption ∥ transcribe → understand → store | `ingest.py` | once per video |
+| Ask: understanding + caption log + speech + hybrid-retrieved frames | `ask.py` | ~1 cloud call |
+| Ephemeral cleanup (wipe on leave / TTL) | `cleanup.py` | — |
+| Web UI (Gradio, understanding-first) | `app.py` | — |
+| NExT-QA benchmark harness | `eval/nextqa.py` | offline |
+
+## Retrieval (hybrid)
+
+Frames attached to an answer are chosen by **Reciprocal Rank Fusion** of two signals:
+CLIP visual similarity (question→frame) and semantic caption similarity (question→caption,
+via `bge-small`). Captions often describe what CLIP-image misses, so fusion surfaces better
+frames than either alone. The full caption log + understanding always reach the LLM
+regardless; retrieval only picks which frames to show as images.
 
 ## Privacy / ephemerality
 
-Nothing is meant to persist. **No images are stored** — only vectors + captions +
-the understanding go to the DB; frame files stay local and transient. Everything for a
-session is wiped on: app startup, loading a new video, tab/session close, and a TTL sweep
-(`TTL_SECONDS`, default 1800).
+Nothing persists. **No images are stored** — only vectors + captions + understanding +
+transcript go to the DB; frame files stay local and transient. A session is wiped on:
+loading a new video, tab/session close, and a TTL sweep (`TTL_SECONDS`, default 1800).
 
 ## Setup
 
@@ -71,7 +84,7 @@ CUDA torch matching your GPU (RTX 5050 is Blackwell, sm_120). CPU also works (sl
 pip install torch --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Config via `.env` (auto-loaded). OpenAI default; Kimi or Chroma Cloud optional:
+Config via `.env` (auto-loaded; whitespace on keys is stripped automatically):
 
 ```ini
 OPENAI_API_KEY=sk-...
@@ -85,9 +98,14 @@ VIDEOQA_MODEL=gpt-4o-mini            # or gpt-5-mini
 CHROMADB_API_KEY=...
 CHROMADB_TENANT=...
 CHROMADB_DATABASE=...
+
+# Optional tuning
+# VIDEOQA_ASR_MODEL=whisper-1          # ASR model (always OpenAI)
+# VIDEOQA_CAPTION_WORKERS=16           # concurrent caption calls
+# VIDEOQA_FORCE_LOCAL=1                # ignore Chroma Cloud, use local DB
 ```
 
-First run downloads the CLIP model (~340MB) once.
+First run downloads CLIP (~340MB) + bge-small (~130MB) once.
 
 ## Use
 
@@ -97,7 +115,8 @@ First run downloads the CLIP model (~340MB) once.
 python -m videoqa.app          # http://127.0.0.1:7860
 ```
 
-Upload a video → **Analyze** → the understanding card appears → ask questions below.
+Upload → **Analyze** → the "what happens in this video" summary appears (timeline/scenes/
+entities below), and a chat panel auto-opens for follow-up questions.
 
 **CLI:**
 
@@ -107,25 +126,46 @@ python -m videoqa.cli ask myclip "what is the person holding?"
 ```
 
 - `--interval` — seconds between sampled frames (smaller = finer, more frames, more cost).
-- `-k` on `ask` — frames attached as images for visual grounding (default 4; 0 = text only).
+- `-k` on `ask` — frames attached as images (default 4; 0 = text only, cheaper).
+
+## Performance
+
+- **Models warm at startup** (background thread) so the first Analyze skips the cold load.
+- **Transcription runs concurrently with captioning** (independent work, overlapped).
+- **Captioning is concurrent** (`VIDEOQA_CAPTION_WORKERS`, default 16).
+- **CPU is the floor.** CLIP embedding on a free CPU Space is the main cost. The real fix is
+  a **GPU Space** (T4) — embedding drops from seconds to ms. On HF, add an `HF_TOKEN` secret
+  for faster model downloads.
 
 ## Deploy (Hugging Face Spaces)
 
-1. Push to GitHub, then to the Space git remote (Gradio SDK, CPU works).
+1. Push to the Space git remote (Gradio SDK; CPU works, GPU recommended).
 2. `app.py` + `packages.txt` (ffmpeg) + this README's front matter configure the Space.
-3. Add secrets in **Space → Settings → Secrets**: `OPENAI_API_KEY`, `VIDEOQA_MODEL`,
-   `CHROMADB_API_KEY`, `CHROMADB_TENANT`, `CHROMADB_DATABASE`. Never commit `.env`.
+3. **Secrets** (Space → Settings → Secrets) — paste with no trailing newline:
+   `OPENAI_API_KEY`, `VIDEOQA_MODEL`, `CHROMADB_API_KEY`, `CHROMADB_TENANT`,
+   `CHROMADB_DATABASE`; optional `HF_TOKEN`, `VIDEOQA_CAPTION_WORKERS`. Never commit `.env`.
 
 ## Audio
 
-Speech is transcribed (timestamped) and **merged with the visual log before synthesis**,
-so the understanding and Q&A use both modalities. ASR is OpenAI `whisper-1` by default
-(`VIDEOQA_ASR_MODEL`); always hits OpenAI even if chat runs on Kimi. Single-shot up to
-~13 min of audio; silent videos are handled (no speech). For max accuracy on a GPU box,
-swap `transcribe.py` to local faster-whisper `large-v3` (same `{start, text}` shape).
+Speech is transcribed (timestamped) and **merged with the visual log before synthesis**, so
+the understanding and Q&A use both modalities. ASR is OpenAI `whisper-1` (`VIDEOQA_ASR_MODEL`);
+always hits OpenAI even if chat runs on Kimi. Single-shot up to ~13 min; silent videos are
+handled. For max accuracy on a GPU box, swap `transcribe.py` to local faster-whisper `large-v3`.
 
-## Limits / next
+## Benchmark
 
-- **No true temporal model.** Frames analyzed independently; fine-grained motion is weak.
-- **Uniform sampling.** Swap `frames.py` to ffmpeg scene-detection if frame count bloats.
+`eval/nextqa.py` scores the pipeline on NExT-QA (multiple-choice), reporting accuracy overall
++ Causal/Temporal/Descriptive. Used as the baseline for the planned JEPA-motion ablation. See
+[`eval/README.md`](eval/README.md) for data setup, commands, and cost control. Offline check:
+
+```bash
+python -m eval.nextqa --selftest
+```
+
+## Roadmap / limits
+
+- **JEPA motion stream** (research): fuse V-JEPA2 motion embeddings into retrieval +
+  understanding, ablate on NExT-QA Causal/Temporal — appearance-only captions are weakest there.
+- **No true temporal model** yet. Frames analyzed independently; fine motion is weak.
+- **Uniform sampling.** Swap `frames.py` to scene-detection if frame count bloats.
 - **Long audio** (>~13 min) needs chunking in `transcribe.py`.
