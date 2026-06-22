@@ -5,6 +5,7 @@ when the user leaves (browser/tab close) and by a TTL sweep for anything orphane
 """
 import hashlib
 import threading
+import time
 from pathlib import Path
 
 import gradio as gr
@@ -17,23 +18,27 @@ from .understand import to_markdown
 
 TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
 
-try:
-    wipe_all()  # clean slate on startup — must never block/crash app boot (Chroma hiccup)
-except Exception as e:
-    print(f"[startup] wipe_all skipped: {type(e).__name__}: {e}")
 
+def _maintenance():
+    """Startup wipe + periodic TTL sweep, all OFF the import/launch path.
 
-def _sweeper():
+    Runs in a daemon thread so module import returns instantly and the server binds the
+    port fast (HF health check passes). Chroma calls here also stop spawning event loops
+    on the main thread (the source of the harmless asyncio __del__ noise at startup).
+    """
     try:
-        sweep(TTL_SECONDS)
+        wipe_all()
     except Exception as e:
-        print(f"[sweeper] {type(e).__name__}: {e}")
-    t = threading.Timer(300, _sweeper)  # re-check every 5 min, even with no traffic
-    t.daemon = True  # don't keep the process alive / wedge shutdown
-    t.start()
+        print(f"[startup] wipe_all skipped: {type(e).__name__}: {e}")
+    while True:
+        time.sleep(300)
+        try:
+            sweep(TTL_SECONDS)
+        except Exception as e:
+            print(f"[sweeper] {type(e).__name__}: {e}")
 
 
-_sweeper()
+threading.Thread(target=_maintenance, daemon=True).start()
 
 
 def _video_id(path: str) -> str:
