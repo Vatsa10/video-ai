@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>videoqa · live understanding</title>
+<link rel="icon" href="/static/brand/videoai-mark.svg">
+<link rel="stylesheet" href="/static/style.css?v=va2">
+</head>
+<body>
+
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="/static/brand/videoai-logo.svg?v=va2" alt="Video AI" height="36">
+    </div>
+    <div id="scene-badge" class="scene-badge"></div>
+    <button id="replay-btn" class="hidden">⟳ NEW VIDEO</button>
+    <div class="unit-tag">
+      <span class="unit-dot"></span> VIDEOAI · LOCAL
+    </div>
+  </header>
+
+  <main id="grid">
+    <div id="left-col">
+      <section id="feed-panel" class="panel">
+        <div class="panel-title">LIVE FEED <span id="mission-clock">T+00:00</span></div>
+        <div id="feed-wrap">
+          <video id="feed" muted playsinline preload="auto"></video>
+          <canvas id="overlay"></canvas>
+          <div class="hud">
+            <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+            <div class="hud-corner bl"></div><div class="hud-corner br"></div>
+            <div class="hud-rec"><span class="rec-dot"></span>REC</div>
+            <div id="hud-labels">
+              <div class="hud-labels-title">DETECTOR · OPEN VOCABULARY <span id="vocab-count"></span></div>
+              <div id="watch-lines"></div>
+              <input id="label-input" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="+ teach a concept…">
+            </div>
+            <div id="capture-flash"></div>
+            <div id="pipeline-ticker">
+              <span class="tick-label">LOOP</span>
+              <span class="tick-step">detect <b id="tick-detect">—</b></span><span class="tick-arrow">→</span>
+              <span class="tick-step">embed <b id="tick-embed">—</b></span><span class="tick-arrow">→</span>
+              <span class="tick-step">store <b id="tick-upsert">—</b></span><span class="tick-arrow">→</span>
+              <span class="tick-step">memory <b id="tick-count">0</b></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="inventory-panel">
+        <div class="panel-title">OBJECT MEMORY
+          <span id="inv-count">0 unique objects</span>
+        </div>
+        <div id="inv-facets"></div>
+        <div id="inv-rail"></div>
+      </section>
+    </div>
+
+    <aside id="side">
+      <section class="panel" id="map-panel">
+        <div class="panel-title">ON-DEVICE MEMORY <span id="map-count">0 vectors</span></div>
+        <canvas id="map"></canvas>
+        <div id="map-tip" class="hidden"><img alt=""><span></span></div>
+      </section>
+
+      <section class="panel" id="metrics-panel">
+        <div class="metrics-row">
+          <div class="metric"><div class="metric-value" id="m-vectors">0</div><div class="metric-label">Vectors</div></div>
+          <div class="metric"><div class="metric-value" id="m-objects">0</div><div class="metric-label">Objects</div></div>
+          <div class="metric"><div class="metric-value" id="m-disk">0.0<small> MB</small></div><div class="metric-label">Shard On Disk</div></div>
+          <div class="metric"><div class="metric-value" id="m-detect">—</div><div class="metric-label">Detect / Frame</div></div>
+        </div>
+        <div class="lat-strip">
+          <div class="lat-title">SEARCH LATENCY <span class="lat-scale">log scale</span></div>
+          <canvas id="latbar"></canvas>
+        </div>
+      </section>
+
+      <section class="panel" id="search-panel">
+        <div class="panel-title">SEARCH OBJECT MEMORY <span id="search-badge"></span></div>
+        <div id="query-box">
+          <span class="prompt">›</span>
+          <input id="query-input" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="search every object seen in the video…">
+        </div>
+        <div id="chips">
+          <button class="chip">where did I last see a person</button>
+          <button class="chip">a laptop</button>
+          <button class="chip">something on the table</button>
+          <button class="chip">a bag or backpack</button>
+        </div>
+        <div id="results"></div>
+      </section>
+
+      <section class="panel hidden" id="understanding-panel">
+        <div class="panel-title">WHAT HAPPENED</div>
+        <div id="u-summary"></div>
+        <div id="u-timeline"></div>
+      </section>
+
+    </aside>
+  </main>
+</div>
+
+<div id="title-overlay" class="overlay">
+  <div class="title-card">
+    <div class="title-logo">
+      <img src="/static/brand/videoai-logo.svg?v=va2" alt="Video AI" width="320">
+    </div>
+    <div class="title-sub">Upload a video — watch it understand, object by object</div>
+    <input id="file-input" type="file" accept="video/*" style="display:none">
+    <button id="upload-btn" class="title-upload">Upload &amp; Analyze</button>
+    <div class="title-hint">live detection · object memory · hybrid search · what-happened summary</div>
+  </div>
+</div>
+
+<div id="boot-overlay" class="overlay hidden">
+  <div id="boot-terminal"></div>
+</div>
+
+<div id="zoom-overlay" class="hidden">
+  <div id="zoom-card">
+    <img id="zoom-img" alt="memory">
+    <div id="zoom-meta"></div>
+  </div>
+</div>
+
+<div id="closing-overlay" class="overlay hidden">
+  <div class="title-card">
+    <div class="title-logo">
+      <img src="/static/brand/videoai-logo.svg?v=va2" alt="Video AI" width="300">
+    </div>
+    <div class="closing-tag">It watched. It remembered. It understood.</div>
+    <div class="closing-points">
+      <span>Live Detection</span><i>·</i><span>Object Memory</span><i>·</i><span>Hybrid Search</span><i>·</i><span>Understanding</span>
+    </div>
+    <div class="closing-url">on-device · Qdrant Edge</div>
+  </div>
+</div>
+
+<script src="/static/app.js?v=va2"></script>
+</body>
+</html>

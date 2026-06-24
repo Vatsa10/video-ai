@@ -1,10 +1,9 @@
-"""HF Spaces entrypoint. Real app lives in videoqa/app.py.
+"""Entry point — the live FastAPI + WebSocket UI.
 
-HF runs `python app.py`, so launch must happen under __main__ and BLOCK — otherwise the
-process exits right after binding the port and the Space hangs on "Starting".
+  python app.py            # or: python -m videoqa.live
+HF Spaces uses the Dockerfile (sdk: docker) to run uvicorn on port 7860.
 """
-from videoqa.app import demo
+import uvicorn
 
 if __name__ == "__main__":
-    # .queue() required for ChatInterface; ssr_mode=False — Gradio 6 SSR wedges HF Spaces.
-    demo.queue().launch(server_name="0.0.0.0", server_port=7860, ssr_mode=False)
+    uvicorn.run("videoqa.live.main:app", host="0.0.0.0", port=7860, ws="wsproto")

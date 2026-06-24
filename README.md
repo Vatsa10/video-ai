@@ -3,10 +3,10 @@ title: videoqa
 emoji: 🎬
 colorFrom: indigo
 colorTo: purple
-sdk: gradio
-app_file: app.py
+sdk: docker
+app_port: 7860
 pinned: false
-short_description: Video understanding AI — tells you what happens in any video.
+short_description: Live video understanding — objects tracked on-device, then explained.
 ---
 
 # videoqa — video understanding pipeline
@@ -53,7 +53,7 @@ stream — see Roadmap.)
 | Ingest: sample → embed → dedup → caption ∥ transcribe → understand → store | `ingest.py` | once per video |
 | Ask: understanding + caption log + speech + hybrid-retrieved frames | `ask.py` | ~1 cloud call |
 | Ephemeral cleanup (wipe on leave / TTL) | `cleanup.py` | — |
-| Web UI (Gradio, understanding-first) | `app.py` | — |
+| **Live UI** (FastAPI + WebSocket: live box overlay, memory map, search, understanding) | `live/` | server |
 | NExT-QA benchmark harness | `eval/nextqa.py` | offline |
 
 ## Storage & retrieval — Qdrant Edge
@@ -136,16 +136,19 @@ downloads CLIP (~340MB) + bge-small (~130MB) once.
 
 ## Use
 
-**Web UI** (recommended):
+**Live UI** (FastAPI + WebSocket) — the flagship:
 
 ```bash
-python -m videoqa.app          # http://127.0.0.1:7860
+python -m videoqa.live          # or: python app.py   →  http://127.0.0.1:7860
 ```
 
-Upload → **Analyze** → the "what happens in this video" summary appears (timeline/scenes/
-entities below), and a chat panel auto-opens for follow-up questions.
+Open the page → **Upload & Analyze** a video. As it plays, bounding boxes are drawn live over
+detected/tracked objects, the on-device memory map fills, object cards stream in, and you can
+**search** the object memory ("where did I last see the chair") for thumbnails + first/last-seen
+timestamps. At the end, the **What Happened** panel shows the narrative summary + timeline.
+GPU strongly recommended (live YOLOE detection). Set `OPENAI_API_KEY` + `VIDEOQA_MODEL` in `.env`.
 
-**CLI:**
+**CLI** (headless ingest + ask):
 
 ```bash
 python -m videoqa.cli ingest clip.mp4 --id myclip --interval 1.0
@@ -164,13 +167,17 @@ python -m videoqa.cli ask myclip "what is the person holding?"
   a **GPU Space** (T4) — embedding drops from seconds to ms. On HF, add an `HF_TOKEN` secret
   for faster model downloads.
 
-## Deploy (Hugging Face Spaces)
+## Deploy (Hugging Face Spaces — Docker)
 
-1. Push to the Space git remote (Gradio SDK; CPU works, GPU recommended).
-2. `app.py` + `packages.txt` (ffmpeg) + this README's front matter configure the Space.
-3. **Secrets** (Space → Settings → Secrets) — paste with no trailing newline:
-   `OPENAI_API_KEY`, `VIDEOQA_MODEL`; optional `HF_TOKEN`, `VIDEOQA_CAPTION_WORKERS`.
-   No database secrets — the Qdrant Edge shard is a local folder. Never commit `.env`.
+The live UI is FastAPI, so the Space runs as a **Docker SDK** Space (front matter
+`sdk: docker`, `app_port: 7860`). The `Dockerfile` installs ffmpeg + deps and runs
+`uvicorn videoqa.live.main:app` on 7860.
+
+1. Push to the Space git remote.
+2. **Secrets** (Space → Settings → Secrets), no trailing newline: `OPENAI_API_KEY`,
+   `VIDEOQA_MODEL`; optional `HF_TOKEN`. No database secrets — Qdrant Edge is a local folder.
+3. **GPU strongly recommended** — live YOLOE detection is heavy on CPU. The Dockerfile installs
+   CPU torch by default; switch to a CUDA wheel index for a GPU Space.
 
 ## Audio
 

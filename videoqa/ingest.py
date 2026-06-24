@@ -22,21 +22,25 @@ OBJ_FPS = 3  # frames/sec sampled for object detection (tracking needs denser fr
 
 
 def ingest(video: str, video_id: str, interval: float = 2.0, dedup: float = 0.97) -> int:
+    print(f"[ingest] sampling frames from {video} ...", flush=True)
     keyframes = extract_keyframes(video, f"storage/frames/{video_id}", interval)
     if not keyframes:
         raise RuntimeError("ffmpeg produced no frames — check the video path/codec")
 
     timestamps, paths = zip(*keyframes)
+    print(f"[ingest] {len(keyframes)} frames; embedding (CLIP) ...", flush=True)
     vecs = Embedder().images(list(paths))
 
     keep = _dedup(vecs, dedup)
     kept_paths = [paths[i] for i in keep]
+    print(f"[ingest] {len(keep)} kept after dedup; captioning + transcribing ...", flush=True)
 
     # Transcription is independent of frames — run it concurrently with captioning.
     with ThreadPoolExecutor(max_workers=1) as ex:
         transcript_future = ex.submit(transcribe, video)
         captions = caption_many(kept_paths)  # concurrent vision calls (own worker pool)
         transcript = transcript_future.result()
+    print(f"[ingest] captioned {len(captions)} frames; {len(transcript)} speech segments", flush=True)
 
     reset(video_id)  # drop any stale collection (e.g. old embedding dim) before re-adding
     add(

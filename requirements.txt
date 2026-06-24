@@ -7,10 +7,12 @@ numpy
 # Cloud reasoning (OpenAI SDK also drives Kimi/Moonshot via base_url)
 openai
 python-dotenv
-# Web UI
-gradio
-# Object-level memory (VIDEOQA_OBJECTS=1) — heavy (YOLOE + a 572MB text encoder), GPU
-# recommended. Comment this block out to deploy the lighter frame-only pipeline.
+# Live web UI (FastAPI + WebSocket)
+fastapi
+uvicorn[standard]
+wsproto               # WebSocket backend (avoids the websockets-15 adapter issue)
+python-multipart     # video upload
+# Object detection / live overlay (YOLOE + a 572MB text encoder) — GPU recommended
 ultralytics
 lap
 opencv-python
