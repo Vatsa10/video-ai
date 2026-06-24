@@ -183,7 +183,9 @@ class EdgeStore:
         for root, _, files in os.walk(self.shard_dir):
             for f in files:
                 try:
-                    total += os.stat(os.path.join(root, f)).st_blocks * 512
+                    st = os.stat(os.path.join(root, f))
+                    # st_blocks is Unix-only; fall back to st_size on Windows.
+                    total += getattr(st, "st_blocks", 0) * 512 or st.st_size
                 except OSError:
                     pass
         self._disk_cache = (now, total)
