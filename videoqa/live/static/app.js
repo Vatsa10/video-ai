@@ -292,17 +292,17 @@ function drawOverlay(now, dt) {
     const confirmed = !!t.obj;
     const alpha = (confirmed ? 0.95 : 0.45) * fade * birth;
 
-    c.strokeStyle = confirmed ? `rgba(52, 240, 176, ${alpha})` : `rgba(138, 164, 255, ${alpha})`;
-    c.lineWidth = confirmed ? 1.6 : 1;
+    c.strokeStyle = confirmed ? `rgba(37, 99, 235, ${alpha})` : `rgba(255, 255, 255, ${alpha * 0.85})`;
+    c.lineWidth = confirmed ? 2 : 1;
     c.strokeRect(x, y, bw, bh);
 
     if (confirmed && bw > 46) {
       const label = t.cls;
-      const tw = c.measureText(label).width + 11;
-      c.fillStyle = `rgba(5, 5, 12, ${0.82 * fade})`;
-      c.fillRect(x - 0.8, y - 20, tw, 19);
-      c.fillStyle = `rgba(52, 240, 176, ${alpha})`;
-      c.fillText(label, x + 4, y - 6);
+      const tw = c.measureText(label).width + 12;
+      c.fillStyle = `rgba(37, 99, 235, ${0.92 * fade})`;
+      c.fillRect(x - 1, y - 20, tw, 19);
+      c.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      c.fillText(label, x + 5, y - 6);
     }
   }
 }
@@ -564,7 +564,7 @@ function drawMap(now) {
   c.clearRect(0, 0, w, h);
 
   // grid
-  c.strokeStyle = "rgba(108, 140, 255, 0.10)";
+  c.strokeStyle = "rgba(37, 99, 235, 0.08)";
   c.lineWidth = 1;
   for (let gx = 0; gx <= w; gx += 36) {
     c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx, h); c.stroke();
@@ -585,7 +585,7 @@ function drawMap(now) {
     if (age < 0.6) {
       c.beginPath();
       c.arc(x, y, 11 * (1 - birth) + 2, 0, 7);
-      c.strokeStyle = `rgba(52, 240, 176, ${0.85 * (1 - birth)})`;
+      c.strokeStyle = `rgba(37, 99, 235, ${0.85 * (1 - birth)})`;
       c.stroke();
     }
 
@@ -594,18 +594,18 @@ function drawMap(now) {
     c.beginPath();
     c.arc(x, y, isHover ? 4.6 : isHit ? 3.8 : isObj ? 3.1 : 2.6, 0, 7);
     c.fillStyle = isHover
-      ? "rgba(52, 240, 176, 1)"
+      ? "rgba(37, 99, 235, 1)"
       : isHit
-        ? `rgba(239, 45, 94, ${Math.max(0.65, 1 - hitAge / 8)})`
+        ? `rgba(225, 29, 72, ${Math.max(0.65, 1 - hitAge / 8)})`
         : isObj
-          ? `rgba(255, 190, 102, ${0.55 + 0.35 * birth})`
-          : `rgba(138, 164, 255, ${0.45 + 0.4 * birth})`;
+          ? `rgba(10, 12, 18, ${0.6 + 0.3 * birth})`
+          : `rgba(37, 99, 235, ${0.4 + 0.4 * birth})`;
     c.fill();
 
     if (isHit && hitAge < 1.6) {
       c.beginPath();
       c.arc(x, y, 5 + hitAge * 15, 0, 7);
-      c.strokeStyle = `rgba(239, 45, 94, ${0.9 * (1 - hitAge / 1.6)})`;
+      c.strokeStyle = `rgba(225, 29, 72, ${0.9 * (1 - hitAge / 1.6)})`;
       c.lineWidth = 2;
       c.stroke();
     }
@@ -631,8 +631,8 @@ function drawLat() {
 
   const barY = 4, barH = 20, tickY = barY + barH + 15;
 
-  c.font = "12px monospace";
-  c.fillStyle = "rgba(176, 180, 210, 0.85)";
+  c.font = "12px ui-monospace, monospace";
+  c.fillStyle = "rgba(138, 147, 166, 0.85)";
   for (const t of [0.1, 1, 10, 100]) {
     const x = lx(t, w);
     c.fillRect(x, barY, 1.5, barH + 5);
@@ -640,29 +640,29 @@ function drawLat() {
   }
 
   const cx1 = lx(80, w), cx2 = lx(200, w);
-  c.fillStyle = "rgba(255, 190, 102, 0.22)";
+  c.fillStyle = "rgba(138, 147, 166, 0.14)";
   c.fillRect(cx1, barY, cx2 - cx1, barH);
-  c.strokeStyle = "rgba(255, 190, 102, 0.7)";
+  c.strokeStyle = "rgba(138, 147, 166, 0.6)";
   c.strokeRect(cx1, barY, cx2 - cx1, barH);
 
   const ms = state.lastQueryUs !== null ? state.lastQueryUs / 1000 : null;
   if (ms !== null) {
     const x = lx(Math.max(0.051, ms), w);
-    c.fillStyle = "#34f0b0";
+    c.fillStyle = "#2563eb";
     c.fillRect(x - 2, barY - 3, 4, barH + 6);
   }
 
   const legY = h - 6;
-  c.font = "bold 13px monospace";
-  c.fillStyle = "#34f0b0";
+  c.font = "bold 13px ui-monospace, monospace";
+  c.fillStyle = "#2563eb";
   c.fillRect(0, legY - 11, 12, 12);
   c.fillText(ms !== null ? `local search ${ms.toFixed(2)} ms` : "local search", 18, legY);
   const cloudX = w / 2 + 6;
-  c.fillStyle = "rgba(255, 190, 102, 0.5)";
+  c.fillStyle = "rgba(138, 147, 166, 0.3)";
   c.fillRect(cloudX, legY - 11, 12, 12);
-  c.strokeStyle = "rgba(255, 190, 102, 0.9)";
+  c.strokeStyle = "rgba(138, 147, 166, 0.7)";
   c.strokeRect(cloudX, legY - 11, 12, 12);
-  c.fillStyle = "rgba(255, 200, 120, 1)";
+  c.fillStyle = "rgba(74, 85, 104, 1)";
   c.fillText("cloud round trip (typical)", cloudX + 18, legY);
 }
 

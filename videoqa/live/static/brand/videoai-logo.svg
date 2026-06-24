@@ -1,31 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 372 80" fill="none" role="img" aria-label="Video AI">
   <defs>
     <linearGradient id="va-play" x1="14" y1="14" x2="66" y2="66" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#34f0b0"/>
-      <stop offset="1" stop-color="#8aa4ff"/>
+      <stop stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
     </linearGradient>
     <linearGradient id="va-ai" x1="300" y1="24" x2="360" y2="60" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#34f0b0"/>
-      <stop offset="1" stop-color="#5cf6c4"/>
+      <stop stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#60a5fa"/>
     </linearGradient>
   </defs>
 
   <!-- icon: rounded frame = video, aperture ring + play = AI vision -->
-  <rect x="10" y="10" width="60" height="60" rx="16"
-        fill="#0b0e1a" stroke="url(#va-play)" stroke-width="2.5"/>
-  <circle cx="40" cy="40" r="20" stroke="url(#va-play)" stroke-width="1.4" opacity="0.35"/>
+  <rect x="10" y="10" width="60" height="60" rx="16" fill="#0a0c12"/>
+  <circle cx="40" cy="40" r="20" stroke="url(#va-play)" stroke-width="1.4" opacity="0.5"/>
   <path d="M34 30.5 L52 40 L34 49.5 Z" fill="url(#va-play)"/>
-  <!-- AI spark / scan dots -->
-  <circle cx="61" cy="19" r="3.4" fill="#34f0b0"/>
-  <circle cx="61" cy="19" r="6.4" stroke="#34f0b0" stroke-width="1.2" opacity="0.4"/>
+  <!-- AI spark -->
+  <circle cx="61" cy="19" r="3.4" fill="#2563eb"/>
+  <circle cx="61" cy="19" r="6.4" stroke="#2563eb" stroke-width="1.2" opacity="0.4"/>
 
   <!-- wordmark -->
-  <text x="92" y="51" font-family="Segoe UI, Inter, system-ui, sans-serif"
-        font-size="34" font-weight="800" letter-spacing="1.5">
-    <tspan fill="#f2f5ff">VIDEO</tspan><tspan fill="url(#va-ai)">AI</tspan>
+  <text x="92" y="51" font-family="Segoe UI, system-ui, sans-serif"
+        font-size="34" font-weight="800" letter-spacing="0.5">
+    <tspan fill="#0a0c12">VIDEO</tspan><tspan fill="url(#va-ai)">AI</tspan>
   </text>
-  <text x="93" y="68" font-family="Segoe UI, Inter, system-ui, sans-serif"
-        font-size="10.5" font-weight="600" letter-spacing="3.4" fill="#8aa4ff" opacity="0.85">
+  <text x="93" y="68" font-family="Segoe UI, system-ui, sans-serif"
+        font-size="10" font-weight="600" letter-spacing="3.2" fill="#1d4ed8" opacity="0.8">
     LIVE UNDERSTANDING
   </text>
 </svg>
