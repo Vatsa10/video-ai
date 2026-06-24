@@ -50,6 +50,13 @@ def text_embed(texts):
     return _text().encode(texts, normalize_embeddings=True, convert_to_numpy=True)
 
 
+def clip_image_embed(pil_images, batch: int = 32) -> np.ndarray:
+    """CLIP embeddings for in-memory PIL images (object crops). Returns (n, 512)."""
+    return _clip().encode(
+        pil_images, batch_size=batch, normalize_embeddings=True, convert_to_numpy=True
+    )
+
+
 def warm():
     """Preload both models (call at startup so the first Analyze skips the cold load)."""
     _clip()

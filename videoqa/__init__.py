@@ -9,8 +9,7 @@ load_dotenv()  # load .env before any module reads os.environ
 # common source. Must run BEFORE submodules construct their clients below.
 for _k in (
     "OPENAI_API_KEY", "VIDEOQA_MODEL", "VIDEOQA_BASE_URL", "VIDEOQA_ASR_MODEL",
-    "CHROMADB_API_KEY", "CHROMADB_TENANT", "CHROMADB_DATABASE",
-    "VIDEOQA_FORCE_LOCAL", "VIDEOQA_CAPTION_WORKERS",
+    "VIDEOQA_CAPTION_WORKERS", "VIDEOQA_OBJECTS", "VIDEOQA_QUANT", "VIDEOQA_MMR",
 ):
     if _k in os.environ:
         os.environ[_k] = os.environ[_k].strip()

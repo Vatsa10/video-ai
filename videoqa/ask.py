@@ -16,10 +16,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-import numpy as np
-
 from .embed import Embedder, text_embed
-from .store import all_frames, load_transcript, load_understanding, query
+from .store import all_frames, frames_mmr, load_transcript, load_understanding, query
 from .understand import to_markdown
 
 load_dotenv()
@@ -36,7 +34,23 @@ def _context(video_id: str, question: str, k: int) -> list[dict]:
     transcript = load_transcript(video_id)
     speech = "\n".join(f"{s['start']:.1f}s: {s['text']}" for s in transcript)
 
-    relevant = _hybrid_frames(video_id, question, k) if k else []
+    # native Qdrant Edge hybrid (CLIP + bge + BM25, RRF-fused in one query);
+    # VIDEOQA_MMR=1 swaps to diversity-aware MMR frame selection instead.
+    qclip, qbge = Embedder().text(question), text_embed(question)
+    if not k:
+        relevant = []
+    elif os.environ.get("VIDEOQA_MMR"):
+        relevant = frames_mmr(video_id, qclip, k=k)
+    else:
+        relevant = query(video_id, qclip, qbge, question, k=k)
+
+    # object-level memory (Phase 2): per-object hits with first/last-seen timestamps
+    objects = query(video_id, qclip, qbge, question, kind="object", k=4)
+    obj_lines = [
+        f"{o.get('obj','?')} ({o.get('cls','?')}): seen {o.get('t_first',0):.0f}–"
+        f"{o.get('t_last',0):.0f}s — {o.get('caption','')}"
+        for o in objects
+    ]
 
     content = [
         {"type": "text", "text": "Structured understanding of the video:\n\n" + understanding},
@@ -47,6 +61,14 @@ def _context(video_id: str, question: str, k: int) -> list[dict]:
             + (speech or "[no speech / no audio]"),
         },
     ]
+    if obj_lines:
+        content.append(
+            {
+                "type": "text",
+                "text": "Tracked objects relevant to the question (re-identified across the "
+                "video, with first/last-seen timestamps):\n\n" + "\n".join(obj_lines),
+            }
+        )
     if relevant:
         content.append(
             {"type": "text", "text": "\nThe frames most relevant to the question, attached:"}
@@ -98,33 +120,6 @@ def _parse_choice(text: str, n: int) -> int:
         if ch.isdigit() and int(ch) < n:
             return int(ch)
     return 0  # fallback: first option
-
-
-def _hybrid_frames(video_id: str, question: str, k: int, rrf: int = 60) -> list[dict]:
-    """CLIP visual recall + caption-text rerank, fused by Reciprocal Rank Fusion.
-
-    Two rankings of the same candidates: by CLIP image similarity and by semantic
-    question-vs-caption similarity. RRF combines them without score normalization.
-    """
-    cands = query(video_id, Embedder().text(question), n=max(12, k * 3))
-    if len(cands) <= k:
-        return cands
-
-    visual_rank = sorted(range(len(cands)), key=lambda i: cands[i]["distance"])
-
-    q = text_embed(question)
-    caps = text_embed([c["caption"] for c in cands])
-    text_sim = caps @ q  # both normalized -> cosine
-    text_rank = sorted(range(len(cands)), key=lambda i: -text_sim[i])
-
-    score = np.zeros(len(cands))
-    for rank, i in enumerate(visual_rank):
-        score[i] += 1.0 / (rrf + rank)
-    for rank, i in enumerate(text_rank):
-        score[i] += 1.0 / (rrf + rank)
-
-    top = sorted(range(len(cands)), key=lambda i: -score[i])[:k]
-    return [cands[i] for i in top]
 
 
 def _data_url(path: str) -> str:

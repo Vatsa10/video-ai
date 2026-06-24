@@ -49,20 +49,49 @@ stream — see Roadmap.)
 | Per-frame vision analysis → captions | `caption.py` | cloud LLM (concurrent) |
 | Speech → timestamped transcript (Whisper) | `transcribe.py` | OpenAI ASR |
 | **Synthesize understanding** over visual + speech | `understand.py` | cloud LLM, 1 pass |
-| Vector + understanding + transcript store (Chroma) | `store.py` | local/cloud |
+| Hybrid store (Qdrant Edge: CLIP + bge + BM25, folder shard) | `store.py` | local |
 | Ingest: sample → embed → dedup → caption ∥ transcribe → understand → store | `ingest.py` | once per video |
 | Ask: understanding + caption log + speech + hybrid-retrieved frames | `ask.py` | ~1 cloud call |
 | Ephemeral cleanup (wipe on leave / TTL) | `cleanup.py` | — |
 | Web UI (Gradio, understanding-first) | `app.py` | — |
 | NExT-QA benchmark harness | `eval/nextqa.py` | offline |
 
-## Retrieval (hybrid)
+## Storage & retrieval — Qdrant Edge
 
-Frames attached to an answer are chosen by **Reciprocal Rank Fusion** of two signals:
-CLIP visual similarity (question→frame) and semantic caption similarity (question→caption,
-via `bge-small`). Captions often describe what CLIP-image misses, so fusion surfaces better
-frames than either alone. The full caption log + understanding always reach the LLM
-regardless; retrieval only picks which frames to show as images.
+The store is a local **Qdrant Edge** shard — an in-process Rust engine that's a *folder*,
+not a server (`qdrant-edge-py`). One shard per video at `storage/shards/{video_id}/`. No
+cloud, no network, no secrets; deleting the folder is a full wipe (fits the ephemeral model).
+
+Retrieval is **native hybrid in a single query** — three signals fused by Reciprocal Rank
+Fusion inside the engine:
+- `vision` — CLIP image embedding (visual recall),
+- `caption_text` — `bge-small` embedding of the caption (semantic),
+- `caption` — BM25 sparse vector over the caption (lexical).
+
+This replaces the old Chroma + manual two-model RRF. The full caption log + understanding
+always reach the LLM; hybrid retrieval only picks which frames to attach as images.
+Understanding + transcript are stored as JSON sidecars in the shard folder.
+
+## Object-level memory (opt-in)
+
+With `VIDEOQA_OBJECTS=1`, ingest also runs an **object pipeline** (ported from Qdrant's
+edge demo): YOLOE open-vocab detection + BoT-SORT tracking, **re-identification** across the
+video (CLIP cosine), a best-crop per object captioned by the cloud LLM, stored as
+`kind="object"` points in the same shard. This enables "where did I last see the …"
+(per-object first/last-seen timestamps) and a live **object inventory** (Qdrant Edge facets)
+in the understanding card. Heavy (YOLOE + per-object work) — **GPU recommended**, off by
+default. Needs `ultralytics`, `lap`, `opencv-python` (see `requirements.txt`).
+
+## Edge features (Qdrant Edge)
+
+- **Quantization** (`VIDEOQA_QUANT=scalar|binary|turbo`) — shrink the vector footprint
+  on-device for constrained hardware.
+- **MMR** (`VIDEOQA_MMR=1`) — diversity-aware frame selection (`store.frames_mmr`) so
+  attached frames are distinct moments, not near-duplicates.
+- **Local-first cloud sync** — the shard folder *is* the snapshot format a Qdrant server
+  reads. `store.export_snapshot(id)` packs it to a `.tar.gz`, `store.import_snapshot(id, path)`
+  restores one (e.g. built/optimized in the cloud and shipped down); `store.snapshot_manifest(id)`
+  exposes the per-segment file versions for incremental diff-sync to a central cluster.
 
 ## Privacy / ephemerality
 
@@ -94,18 +123,16 @@ VIDEOQA_MODEL=gpt-4o-mini            # or gpt-5-mini
 # VIDEOQA_BASE_URL=https://api.moonshot.ai/v1
 # VIDEOQA_MODEL=moonshot-v1-8k-vision-preview
 
-# Chroma Cloud (omit all three to use a local DB under storage/)
-CHROMADB_API_KEY=...
-CHROMADB_TENANT=...
-CHROMADB_DATABASE=...
-
 # Optional tuning
 # VIDEOQA_ASR_MODEL=whisper-1          # ASR model (always OpenAI)
 # VIDEOQA_CAPTION_WORKERS=16           # concurrent caption calls
-# VIDEOQA_FORCE_LOCAL=1                # ignore Chroma Cloud, use local DB
+# VIDEOQA_OBJECTS=1                    # object-level memory (heavy; GPU recommended)
+# VIDEOQA_QUANT=scalar                 # on-device quantization: scalar|binary|turbo
+# VIDEOQA_MMR=1                        # diversity-aware (MMR) frame selection for answers
 ```
 
-First run downloads CLIP (~340MB) + bge-small (~130MB) once.
+The store is a local Qdrant Edge folder — **no database service or keys needed**. First run
+downloads CLIP (~340MB) + bge-small (~130MB) once.
 
 ## Use
 
@@ -142,8 +169,8 @@ python -m videoqa.cli ask myclip "what is the person holding?"
 1. Push to the Space git remote (Gradio SDK; CPU works, GPU recommended).
 2. `app.py` + `packages.txt` (ffmpeg) + this README's front matter configure the Space.
 3. **Secrets** (Space → Settings → Secrets) — paste with no trailing newline:
-   `OPENAI_API_KEY`, `VIDEOQA_MODEL`, `CHROMADB_API_KEY`, `CHROMADB_TENANT`,
-   `CHROMADB_DATABASE`; optional `HF_TOKEN`, `VIDEOQA_CAPTION_WORKERS`. Never commit `.env`.
+   `OPENAI_API_KEY`, `VIDEOQA_MODEL`; optional `HF_TOKEN`, `VIDEOQA_CAPTION_WORKERS`.
+   No database secrets — the Qdrant Edge shard is a local folder. Never commit `.env`.
 
 ## Audio
 

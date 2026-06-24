@@ -13,7 +13,7 @@ import gradio as gr
 from .ask import ask
 from .cleanup import sweep, track, wipe
 from .ingest import ingest
-from .store import load_understanding
+from .store import class_facets, load_understanding
 from .understand import details_md, summary_md
 
 TTL_SECONDS = 1800  # data older than this is wiped (idle/orphaned sessions)
@@ -58,8 +58,14 @@ def process(video_path, interval, prev_id):
     n = ingest(video_path, vid, float(interval))
     track(vid)
     u = load_understanding(vid)
+    details = details_md(u)
+    facets = class_facets(vid)  # object inventory (empty unless VIDEOQA_OBJECTS)
+    if facets:
+        details += "\n\n### 📦 Objects tracked\n" + ", ".join(
+            f"{c} ×{n_}" for c, n_ in facets
+        )
     # open the chat accordion now that there's something to ask about
-    return vid, f"Analyzed {n} keyframes.", summary_md(u), details_md(u), gr.update(open=True)
+    return vid, f"Analyzed {n} keyframes.", summary_md(u), details, gr.update(open=True)
 
 
 def chat(message, history, video_id):

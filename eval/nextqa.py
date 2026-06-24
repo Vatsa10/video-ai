@@ -17,13 +17,11 @@ cloud, and the per-video index persists so re-runs skip re-ingest.
 import argparse
 import csv
 import json
-import os
+import os  # noqa: F401  (kept for callers that set env before import)
 import sys
 import time
 from collections import Counter
 from pathlib import Path
-
-os.environ.setdefault("VIDEOQA_FORCE_LOCAL", "1")  # eval uses a local DB, never the cloud
 
 from videoqa.ask import ask_mc  # noqa: E402
 from videoqa.ingest import ingest  # noqa: E402
