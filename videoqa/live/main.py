@@ -6,6 +6,7 @@ Run: python -m videoqa.live   (uvicorn videoqa.live.main:app on :7860)
 import asyncio
 import json
 import logging
+import threading
 import uuid
 
 from fastapi import FastAPI, UploadFile, WebSocket, WebSocketDisconnect
@@ -57,10 +58,19 @@ current_video = None  # path of the most recently uploaded video
 @app.on_event("startup")
 async def startup():
     hub.loop = asyncio.get_running_loop()
-    logger.info("Warming models ...")
-    await asyncio.to_thread(encoder.warm)
-    await asyncio.to_thread(detector.warm)
-    logger.info("Ready.")
+
+    def _warm():
+        # Off the startup path so the port binds instantly (HF health check passes);
+        # models download/load in the background, ready before the first Analyze.
+        try:
+            logger.info("Warming models ...")
+            encoder.warm()
+            detector.warm()
+            logger.info("Models ready.")
+        except Exception as e:
+            print(f"[warm] {type(e).__name__}: {e}")
+
+    threading.Thread(target=_warm, daemon=True).start()
 
 
 @app.post("/upload")
