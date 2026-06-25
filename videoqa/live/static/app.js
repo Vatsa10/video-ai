@@ -27,7 +27,8 @@ function setHint(text) {
 }
 function connect() {
   setHint("connecting…");
-  ws = new WebSocket(`ws://${location.host}/ws`);
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
   ws.onmessage = (e) => handle(JSON.parse(e.data));
   ws.onclose = () => {
     state.started = false;
