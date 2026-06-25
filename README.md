@@ -6,7 +6,7 @@ colorTo: purple
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: Live video understanding — objects tracked on-device, then explained.
+short_description: Live video understanding with on-device object memory.
 ---
 
 # videoqa — video understanding pipeline
