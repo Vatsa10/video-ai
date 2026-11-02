@@ -1,5 +1,12 @@
 # VideoAI
 
+<p align="center">
+  <img src="https://img.shields.io/badge/AI-Video%20Understanding-6A5AE0?style=for-the-badge" alt="VideoAI" />
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/FastAPI-Live%20UI-009688?style=for-the-badge" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Qdrant-Edge-FF6B6B?style=for-the-badge" alt="Qdrant Edge" />
+</p>
+
 AI that understands videos.
 
 A local-first video understanding pipeline that extracts key frames, transcribes speech, analyzes visual content, stores semantic memory, and answers questions about what happened in a clip.
@@ -38,8 +45,7 @@ flowchart LR
     G --> H[Summary / timeline / entities / scenes]
     H --> I[Q&A + semantic search]
     F --> I
-    H --> J[Object memory pipeline
-    (optional)]
+    H --> J["Object memory pipeline (optional)"]
 ```
 
 ## High-level pipeline
@@ -89,7 +95,7 @@ sequenceDiagram
 ├── videoqa/
 │   ├── ask.py              # question answering
 │   ├── caption.py           # per-frame captioning
-│   ├── cli.py              # command-line interface
+│   ├── cli.py              # command line interface
 │   ├── cleanup.py          # session cleanup logic
 │   ├── detector.py         # detection-related utilities
 │   ├── embed.py            # embedding logic
@@ -100,7 +106,8 @@ sequenceDiagram
 │   ├── store.py            # hybrid vector store
 │   ├── transcribe.py       # speech-to-text
 │   └── understand.py       # video-level synthesis
-└── .gitignore
+├── .gitignore
+└── .env.example (if added in your local setup)
 ```
 
 ## How the pipeline works
